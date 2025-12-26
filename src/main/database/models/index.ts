@@ -8,6 +8,16 @@ import Stone from './Stone';
 import ProductStone from './ProductStone';
 import SyncQueue from './SyncQueue';
 import SyncStatus from './SyncStatus';
+import GoldLoan from './GoldLoan';
+import LoanPayment from './LoanPayment';
+import Vendor from './Vendor';
+import PurchaseOrder from './PurchaseOrder';
+import MetalRate from './MetalRate';
+import SalesReturn from './SalesReturn';
+import Quotation from './Quotation';
+import QuotationItem from './QuotationItem';
+import AuditLog from './AuditLog';
+import Notification from './Notification';
 
 /**
  * Database Models Index
@@ -53,6 +63,53 @@ export const setupAssociations = (): void => {
   // ProductStone associations
   ProductStone.belongsTo(Product, { foreignKey: 'product_id', as: 'product' });
   ProductStone.belongsTo(Stone, { foreignKey: 'stone_id', as: 'stone' });
+
+  // GoldLoan associations
+  GoldLoan.belongsTo(Customer, { foreignKey: 'customer_id', as: 'customer' });
+  GoldLoan.belongsTo(User, { as: 'creator', foreignKey: 'created_by' });
+  GoldLoan.belongsTo(User, { as: 'updater', foreignKey: 'updated_by' });
+  GoldLoan.belongsTo(User, { as: 'approver', foreignKey: 'approved_by' });
+  GoldLoan.hasMany(LoanPayment, { foreignKey: 'loan_id', as: 'payments' });
+
+  // LoanPayment associations
+  LoanPayment.belongsTo(GoldLoan, { foreignKey: 'loan_id', as: 'loan' });
+  LoanPayment.belongsTo(User, { as: 'creator', foreignKey: 'created_by' });
+  LoanPayment.belongsTo(User, { as: 'verifier', foreignKey: 'verified_by' });
+
+  // Vendor associations
+  Vendor.belongsTo(User, { as: 'creator', foreignKey: 'created_by' });
+  Vendor.belongsTo(User, { as: 'updater', foreignKey: 'updated_by' });
+  Vendor.hasMany(PurchaseOrder, { foreignKey: 'vendor_id', as: 'purchaseOrders' });
+
+  // PurchaseOrder associations
+  PurchaseOrder.belongsTo(Vendor, { foreignKey: 'vendor_id', as: 'vendor' });
+  PurchaseOrder.belongsTo(MetalType, { foreignKey: 'metal_type_id', as: 'metalType' });
+  PurchaseOrder.belongsTo(User, { as: 'creator', foreignKey: 'created_by' });
+  PurchaseOrder.belongsTo(User, { as: 'updater', foreignKey: 'updated_by' });
+
+  // MetalRate associations
+  MetalRate.belongsTo(User, { as: 'creator', foreignKey: 'created_by' });
+
+  // SalesReturn associations
+  SalesReturn.belongsTo(Customer, { foreignKey: 'customer_id', as: 'customer' });
+  SalesReturn.belongsTo(User, { as: 'creator', foreignKey: 'created_by' });
+  SalesReturn.belongsTo(User, { as: 'approver', foreignKey: 'approved_by' });
+
+  // Quotation associations
+  Quotation.belongsTo(Customer, { foreignKey: 'customer_id', as: 'customer' });
+  Quotation.belongsTo(User, { as: 'creator', foreignKey: 'created_by' });
+  Quotation.belongsTo(User, { as: 'updater', foreignKey: 'updated_by' });
+  Quotation.hasMany(QuotationItem, { foreignKey: 'quotation_id', as: 'items' });
+
+  // QuotationItem associations
+  QuotationItem.belongsTo(Quotation, { foreignKey: 'quotation_id', as: 'quotation' });
+  QuotationItem.belongsTo(Product, { foreignKey: 'product_id', as: 'product' });
+
+  // AuditLog associations
+  AuditLog.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
+  // Notification associations
+  Notification.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 };
 
 /**
@@ -90,6 +147,16 @@ export {
   ProductStone,
   SyncQueue,
   SyncStatus,
+  GoldLoan,
+  LoanPayment,
+  Vendor,
+  PurchaseOrder,
+  MetalRate,
+  SalesReturn,
+  Quotation,
+  QuotationItem,
+  AuditLog,
+  Notification,
 };
 
 /**
@@ -106,6 +173,16 @@ export default {
   ProductStone,
   SyncQueue,
   SyncStatus,
+  GoldLoan,
+  LoanPayment,
+  Vendor,
+  PurchaseOrder,
+  MetalRate,
+  SalesReturn,
+  Quotation,
+  QuotationItem,
+  AuditLog,
+  Notification,
   setupAssociations,
   initializeModels,
 };

@@ -1,28 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Menu, Button, Typography, Space, Card, Row, Col, Statistic, Badge, message, Spin } from 'antd';
+import { Card, Row, Col, Statistic, Badge, message, Spin, Button, Table } from 'antd';
 import {
-  DashboardOutlined,
-  ShoppingOutlined,
-  TeamOutlined,
-  FileTextOutlined,
-  SettingOutlined,
-  LogoutOutlined,
-  UserOutlined,
   GoldOutlined,
+  TeamOutlined,
   DollarOutlined,
+  WarningOutlined,
   CloudSyncOutlined,
   SyncOutlined,
-  CheckCircleOutlined,
   CloseCircleOutlined,
   ClockCircleOutlined,
+  ShoppingOutlined,
 } from '@ant-design/icons';
-import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { RootState } from '../store';
-import { clearUser } from '../store/slices/authSlice';
-
-const { Header, Sider, Content } = Layout;
-const { Title, Text } = Typography;
+import type { ColumnsType } from 'antd/es/table';
 
 interface SyncStatusData {
   configured: boolean;
@@ -39,15 +29,39 @@ interface SyncStatusData {
   };
 }
 
+interface DashboardStats {
+  totalProducts: number;
+  totalCustomers: number;
+  lowStockProducts: number;
+  outOfStockProducts: number;
+  totalInventoryValue: number;
+}
+
+interface LowStockProduct {
+  id: number;
+  product_name: string;
+  product_code: string;
+  current_stock: number;
+  min_stock_level: number;
+  category?: { category_name: string };
+}
+
 /**
  * Dashboard Page Component
  */
 const Dashboard: React.FC = () => {
-  const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { user } = useSelector((state: RootState) => state.auth);
   const [syncStatus, setSyncStatus] = useState<SyncStatusData | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [stats, setStats] = useState<DashboardStats>({
+    totalProducts: 0,
+    totalCustomers: 0,
+    lowStockProducts: 0,
+    outOfStockProducts: 0,
+    totalInventoryValue: 0,
+  });
+  const [lowStockItems, setLowStockItems] = useState<LowStockProduct[]>([]);
+  const [loading, setLoading] = useState(true);
 
   /**
    * Fetch sync status
@@ -72,7 +86,7 @@ const Dashboard: React.FC = () => {
       const response = await window.electronAPI.sync.triggerSync();
       if (response.success) {
         message.success(`Sync completed! Pushed: ${response.pushed}, Pulled: ${response.pulled}`);
-        fetchSyncStatus(); // Refresh status
+        fetchSyncStatus();
       } else {
         message.error(response.message || 'Sync failed');
       }
@@ -84,23 +98,61 @@ const Dashboard: React.FC = () => {
   };
 
   /**
-   * Load sync status on mount
+   * Load dashboard statistics
+   */
+  const loadDashboardStats = async () => {
+    try {
+      setLoading(true);
+
+      // Fetch products
+      const productsResponse = await window.electronAPI.product.getAll({ is_active: true });
+      const products = productsResponse.success ? productsResponse.data : [];
+
+      // Fetch customers
+      const customersResponse = await window.electronAPI.customer.getAll({ is_active: true });
+      const customers = customersResponse.success ? customersResponse.data : [];
+
+      // Fetch low stock products
+      const lowStockResponse = await window.electronAPI.product.getLowStock();
+      const lowStock = lowStockResponse.success ? lowStockResponse.data : [];
+
+      // Fetch out of stock products
+      const outOfStockResponse = await window.electronAPI.product.getOutOfStock();
+      const outOfStock = outOfStockResponse.success ? outOfStockResponse.data : [];
+
+      // Calculate total inventory value
+      const totalValue = products.reduce((sum: number, product: any) => {
+        return sum + (Number(product.unit_price) * Number(product.current_stock || 0));
+      }, 0);
+
+      setStats({
+        totalProducts: products.length,
+        totalCustomers: customers.length,
+        lowStockProducts: lowStock.length,
+        outOfStockProducts: outOfStock.length,
+        totalInventoryValue: totalValue,
+      });
+
+      setLowStockItems(lowStock.slice(0, 5)); // Top 5 low stock items
+    } catch (error) {
+      console.error('Failed to load dashboard stats:', error);
+      message.error('Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Load sync status and stats on mount
    */
   useEffect(() => {
     fetchSyncStatus();
+    loadDashboardStats();
+
     // Refresh status every 30 seconds
     const interval = setInterval(fetchSyncStatus, 30000);
     return () => clearInterval(interval);
   }, []);
-
-  /**
-   * Handle logout
-   */
-  const handleLogout = () => {
-    dispatch(clearUser());
-    localStorage.removeItem('token');
-    navigate('/login');
-  };
 
   /**
    * Format time ago
@@ -116,297 +168,254 @@ const Dashboard: React.FC = () => {
   };
 
   /**
-   * Menu items
+   * Low stock table columns
    */
-  const menuItems = [
+  const lowStockColumns: ColumnsType<LowStockProduct> = [
     {
-      key: 'dashboard',
-      icon: <DashboardOutlined />,
-      label: 'Dashboard',
+      title: 'Product Name',
+      dataIndex: 'product_name',
+      key: 'product_name',
+      render: (text, record) => (
+        <div>
+          <div className="font-medium">{text}</div>
+          <div className="text-xs text-gray-500">{record.product_code}</div>
+        </div>
+      ),
     },
     {
-      key: 'inventory',
-      icon: <GoldOutlined />,
-      label: 'Inventory',
-      children: [
-        { key: 'products', label: 'Products' },
-        { key: 'categories', label: 'Categories' },
-        { key: 'metal-types', label: 'Metal Types' },
-        { key: 'stones', label: 'Stones' },
-      ],
+      title: 'Category',
+      dataIndex: ['category', 'category_name'],
+      key: 'category',
+      render: (text) => text || '-',
     },
     {
-      key: 'sales',
-      icon: <ShoppingOutlined />,
-      label: 'Sales',
-      children: [
-        { key: 'new-invoice', label: 'New Invoice' },
-        { key: 'invoices', label: 'All Invoices' },
-        { key: 'old-gold', label: 'Old Gold Exchange' },
-      ],
+      title: 'Current Stock',
+      dataIndex: 'current_stock',
+      key: 'current_stock',
+      align: 'right',
+      render: (value) => (
+        <span className="text-red-600 font-semibold">{value}</span>
+      ),
     },
     {
-      key: 'customers',
-      icon: <TeamOutlined />,
-      label: 'Customers',
+      title: 'Min Stock',
+      dataIndex: 'min_stock_level',
+      key: 'min_stock_level',
+      align: 'right',
     },
     {
-      key: 'accounting',
-      icon: <DollarOutlined />,
-      label: 'Accounting',
-      children: [
-        { key: 'ledgers', label: 'Ledgers' },
-        { key: 'payments', label: 'Payments' },
-        { key: 'vouchers', label: 'Vouchers' },
-      ],
-    },
-    {
-      key: 'reports',
-      icon: <FileTextOutlined />,
-      label: 'Reports',
-    },
-    {
-      key: 'settings',
-      icon: <SettingOutlined />,
-      label: 'Settings',
+      title: 'Action',
+      key: 'action',
+      align: 'right',
+      render: (_, record) => (
+        <Button
+          type="link"
+          size="small"
+          onClick={() => navigate(`/products/${record.id}`)}
+        >
+          View
+        </Button>
+      ),
     },
   ];
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Sider
-        breakpoint="lg"
-        collapsedWidth="0"
-        width={240}
-        style={{
-          overflow: 'auto',
-          height: '100vh',
-          position: 'fixed',
-          left: 0,
-          top: 0,
-          bottom: 0,
-        }}
-      >
-        <div style={{
-          height: 64,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: '#d4af37',
-          fontSize: 20,
-          fontWeight: 600,
-        }}>
-          Jewellery ERP
+    <div>
+      <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome to Dhandha ERP</h1>
+      <p className="text-gray-600 mb-6">Complete inventory management for your jewellery business</p>
+
+      {/* Statistics Cards */}
+      <Row gutter={[16, 16]} className="mb-6">
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic
+              title="Total Products"
+              value={stats.totalProducts}
+              prefix={<GoldOutlined />}
+              valueStyle={{ color: '#d4af37' }}
+              loading={loading}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic
+              title="Total Customers"
+              value={stats.totalCustomers}
+              prefix={<TeamOutlined />}
+              valueStyle={{ color: '#1890ff' }}
+              loading={loading}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic
+              title="Inventory Value"
+              value={stats.totalInventoryValue}
+              prefix="₹"
+              precision={2}
+              valueStyle={{ color: '#52c41a' }}
+              loading={loading}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic
+              title="Low Stock Items"
+              value={stats.lowStockProducts}
+              prefix={<WarningOutlined />}
+              valueStyle={{ color: '#faad14' }}
+              loading={loading}
+            />
+            {stats.outOfStockProducts > 0 && (
+              <div className="mt-2 text-xs text-red-600">
+                {stats.outOfStockProducts} out of stock
+              </div>
+            )}
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Quick Actions */}
+      <Card className="mb-6">
+        <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
+        <div className="flex flex-wrap gap-3">
+          <Button
+            type="primary"
+            icon={<ShoppingOutlined />}
+            onClick={() => navigate('/billing/new')}
+          >
+            New Invoice
+          </Button>
+          <Button
+            icon={<GoldOutlined />}
+            onClick={() => navigate('/products/new')}
+          >
+            Add Product
+          </Button>
+          <Button
+            icon={<TeamOutlined />}
+            onClick={() => navigate('/customers')}
+          >
+            View Customers
+          </Button>
+          <Button
+            icon={<DollarOutlined />}
+            onClick={() => navigate('/metal-rates')}
+          >
+            Metal Rates
+          </Button>
         </div>
-        <Menu
-          theme="dark"
-          mode="inline"
-          defaultSelectedKeys={['dashboard']}
-          items={menuItems}
-        />
-      </Sider>
+      </Card>
 
-      <Layout style={{ marginLeft: 240 }}>
-        <Header style={{
-          background: '#fff',
-          padding: '0 24px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          position: 'sticky',
-          top: 0,
-          zIndex: 1,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-        }}>
-          <Title level={4} style={{ margin: 0 }}>
-            Dashboard
-          </Title>
-          <Space>
-            <Space>
-              <UserOutlined />
-              <Text>{user?.full_name || user?.username}</Text>
-            </Space>
-            <Button
-              type="text"
-              icon={<LogoutOutlined />}
-              onClick={handleLogout}
-            >
-              Logout
+      {/* Low Stock Alerts */}
+      {lowStockItems.length > 0 && (
+        <Card className="mb-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold">
+              <WarningOutlined className="text-yellow-500 mr-2" />
+              Low Stock Alerts
+            </h3>
+            <Button type="link" onClick={() => navigate('/products')}>
+              View All Products
             </Button>
-          </Space>
-        </Header>
+          </div>
+          <Table
+            columns={lowStockColumns}
+            dataSource={lowStockItems}
+            rowKey="id"
+            pagination={false}
+            size="small"
+          />
+        </Card>
+      )}
 
-        <Content style={{ margin: '24px', minHeight: 280 }}>
-          <Title level={3}>Welcome to Jewellery ERP System</Title>
-          <Text type="secondary">
-            Complete inventory management for your jewellery business
-          </Text>
-
-          <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
-            <Col xs={24} sm={12} lg={6}>
-              <Card>
-                <Statistic
-                  title="Total Products"
-                  value={0}
-                  prefix={<GoldOutlined />}
-                  valueStyle={{ color: '#d4af37' }}
-                />
-              </Card>
+      {/* Cloud Sync Status Card */}
+      {syncStatus?.configured && (
+        <Card
+          className="mb-6"
+          title={
+            <div className="flex items-center gap-2">
+              <CloudSyncOutlined />
+              <span>Multi-Branch Sync Status</span>
+            </div>
+          }
+          extra={
+            <Button
+              type="primary"
+              icon={syncing ? <Spin size="small" /> : <SyncOutlined />}
+              onClick={handleManualSync}
+              loading={syncing}
+              disabled={syncStatus?.status?.isSyncing}
+            >
+              Sync Now
+            </Button>
+          }
+        >
+          <Row gutter={16}>
+            <Col span={6}>
+              <div className="mb-2 text-gray-500 text-sm">Sync Status</div>
+              {syncStatus?.status?.isSyncing ? (
+                <Badge status="processing" text="Syncing..." />
+              ) : syncStatus?.status?.lastSyncError ? (
+                <Badge status="error" text="Error" />
+              ) : (
+                <Badge status="success" text="Active" />
+              )}
             </Col>
-            <Col xs={24} sm={12} lg={6}>
-              <Card>
-                <Statistic
-                  title="Total Customers"
-                  value={0}
-                  prefix={<TeamOutlined />}
-                  valueStyle={{ color: '#1890ff' }}
-                />
-              </Card>
+            <Col span={6}>
+              <div className="mb-2 text-gray-500 text-sm">Last Sync</div>
+              <div>{formatTimeAgo(syncStatus?.status?.lastSyncAt || null)}</div>
             </Col>
-            <Col xs={24} sm={12} lg={6}>
-              <Card>
-                <Statistic
-                  title="Today's Sales"
-                  value={0}
-                  prefix="₹"
-                  valueStyle={{ color: '#52c41a' }}
-                />
-              </Card>
+            <Col span={6}>
+              <div className="mb-2 text-gray-500 text-sm">Pending Changes</div>
+              <Badge
+                count={syncStatus?.status?.pendingChangesCount || 0}
+                showZero
+                style={{ backgroundColor: '#1890ff' }}
+              />
             </Col>
-            <Col xs={24} sm={12} lg={6}>
-              <Card>
-                <Statistic
-                  title="Pending Orders"
-                  value={0}
-                  prefix={<FileTextOutlined />}
-                  valueStyle={{ color: '#faad14' }}
-                />
-              </Card>
+            <Col span={6}>
+              <div className="mb-2 text-gray-500 text-sm">Sync Interval</div>
+              <div>{syncStatus?.status?.syncIntervalMinutes} minutes</div>
             </Col>
           </Row>
-
-          <Card style={{ marginTop: 24 }}>
-            <Title level={4}>Quick Actions</Title>
-            <Space wrap>
-              <Button type="primary" icon={<ShoppingOutlined />}>
-                New Invoice
-              </Button>
-              <Button icon={<GoldOutlined />}>
-                Add Product
-              </Button>
-              <Button icon={<TeamOutlined />}>
-                Add Customer
-              </Button>
-              <Button icon={<FileTextOutlined />}>
-                View Reports
-              </Button>
-            </Space>
-          </Card>
-
-          {/* Cloud Sync Status Card */}
-          {syncStatus?.configured && (
-            <Card
-              style={{ marginTop: 24 }}
-              title={
-                <Space>
-                  <CloudSyncOutlined />
-                  <span>Multi-Branch Sync Status</span>
-                </Space>
-              }
-              extra={
-                <Button
-                  type="primary"
-                  icon={syncing ? <Spin size="small" /> : <SyncOutlined />}
-                  onClick={handleManualSync}
-                  loading={syncing}
-                  disabled={syncStatus?.status?.isSyncing}
-                >
-                  Sync Now
-                </Button>
-              }
-            >
-              <Row gutter={16}>
-                <Col span={6}>
-                  <Space direction="vertical" size="small">
-                    <Text type="secondary">Sync Status</Text>
-                    {syncStatus?.status?.isSyncing ? (
-                      <Badge status="processing" text="Syncing..." />
-                    ) : syncStatus?.status?.lastSyncError ? (
-                      <Badge status="error" text="Error" />
-                    ) : (
-                      <Badge status="success" text="Active" />
-                    )}
-                  </Space>
-                </Col>
-                <Col span={6}>
-                  <Space direction="vertical" size="small">
-                    <Text type="secondary">Last Sync</Text>
-                    <Text>{formatTimeAgo(syncStatus?.status?.lastSyncAt || null)}</Text>
-                  </Space>
-                </Col>
-                <Col span={6}>
-                  <Space direction="vertical" size="small">
-                    <Text type="secondary">Pending Changes</Text>
-                    <Badge
-                      count={syncStatus?.status?.pendingChangesCount || 0}
-                      showZero
-                      style={{ backgroundColor: '#1890ff' }}
-                    />
-                  </Space>
-                </Col>
-                <Col span={6}>
-                  <Space direction="vertical" size="small">
-                    <Text type="secondary">Sync Interval</Text>
-                    <Text>{syncStatus?.status?.syncIntervalMinutes} minutes</Text>
-                  </Space>
-                </Col>
-              </Row>
-              {syncStatus?.status?.lastSyncError && (
-                <div style={{ marginTop: 16, padding: 12, background: '#fff1f0', borderRadius: 4 }}>
-                  <Text type="danger">
-                    <CloseCircleOutlined /> {syncStatus.status.lastSyncError}
-                  </Text>
-                </div>
-              )}
-              <div style={{ marginTop: 16 }}>
-                <Text type="secondary">
-                  <ClockCircleOutlined /> Your data syncs automatically every{' '}
-                  {syncStatus?.status?.syncIntervalMinutes} minutes with other branches.
-                  Changes are queued when offline and synced when connection is restored.
-                </Text>
+          {syncStatus?.status?.lastSyncError && (
+            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded">
+              <div className="text-red-700 text-sm">
+                <CloseCircleOutlined /> {syncStatus.status.lastSyncError}
               </div>
-            </Card>
+            </div>
           )}
+          <div className="mt-4 text-gray-500 text-sm">
+            <ClockCircleOutlined /> Your data syncs automatically every{' '}
+            {syncStatus?.status?.syncIntervalMinutes} minutes with other branches.
+            Changes are queued when offline and synced when connection is restored.
+          </div>
+        </Card>
+      )}
 
-          <Card style={{ marginTop: 24 }}>
-            <Title level={4}>System Information</Title>
-            <Space direction="vertical" size="small">
-              <Text>
-                <strong>User:</strong> {user?.username} ({user?.full_name})
-              </Text>
-              <Text>
-                <strong>Email:</strong> {user?.email}
-              </Text>
-              <Text>
-                <strong>Branch:</strong> {user?.branch_id || 'All Branches'}
-              </Text>
-              {!syncStatus?.configured && (
-                <div style={{ marginTop: 16, padding: 12, background: '#e6f7ff', borderRadius: 4 }}>
-                  <Text type="secondary">
-                    <CloudSyncOutlined /> Multi-branch sync not configured. Configure Supabase
-                    credentials in .env to enable cloud synchronization.
-                  </Text>
-                </div>
-              )}
-              <Text type="secondary" style={{ marginTop: 16, display: 'block' }}>
-                This is your Jewellery ERP system with local-first architecture.
-                All data is stored locally for fast offline access{syncStatus?.configured && ', with automatic cloud sync for multi-branch coordination'}.
-              </Text>
-            </Space>
-          </Card>
-        </Content>
-      </Layout>
-    </Layout>
+      {/* Info Card */}
+      {!syncStatus?.configured && (
+        <Card>
+          <h3 className="text-lg font-semibold mb-2">System Information</h3>
+          <div className="text-gray-600 text-sm space-y-2">
+            <p>
+              This is your Jewellery ERP system with local-first architecture.
+              All data is stored locally for fast offline access.
+            </p>
+            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded">
+              <div className="text-blue-700 text-sm">
+                <CloudSyncOutlined /> Multi-branch sync not configured. Configure Supabase
+                credentials in .env to enable cloud synchronization.
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
+    </div>
   );
 };
 
