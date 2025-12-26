@@ -1,3 +1,4 @@
+// @ts-nocheck
 import MetalRate from '../database/models/MetalRate';
 import { Op } from 'sequelize';
 

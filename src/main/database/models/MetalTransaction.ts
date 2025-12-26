@@ -1,4 +1,4 @@
-import { DataTypes, Model, Optional } from 'sequelize';
+import { DataTypes, Model, Optional, Op } from 'sequelize';
 import { sequelize } from '../connection';
 
 /**
@@ -133,7 +133,7 @@ export class MetalTransaction extends Model<MetalTransactionAttributes, MetalTra
     const transactions = await MetalTransaction.findAll({
       where: {
         transaction_number: {
-          [sequelize.Sequelize.Op.like]: pattern,
+          [Op.like]: pattern,
         },
       },
       order: [['transaction_number', 'DESC']],

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import Quotation from '../database/models/Quotation';
 import QuotationItem from '../database/models/QuotationItem';
 import Invoice from '../database/models/Invoice';

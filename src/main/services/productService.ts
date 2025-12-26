@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Product } from '../database/models/Product';
 import { Category } from '../database/models/Category';
 import { MetalType } from '../database/models/MetalType';

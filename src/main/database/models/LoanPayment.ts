@@ -1,5 +1,5 @@
 import { DataTypes, Model, Optional, Sequelize } from 'sequelize';
-import sequelize from '../index';
+import { sequelize } from '../connection';
 
 /**
  * LoanPayment Attributes Interface

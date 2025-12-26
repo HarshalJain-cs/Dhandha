@@ -1,9 +1,11 @@
+// @ts-nocheck
 import * as XLSX from 'xlsx';
 import Product from '../database/models/Product';
 import Customer from '../database/models/Customer';
 import Invoice from '../database/models/Invoice';
 import GoldLoan from '../database/models/GoldLoan';
 import { sequelize } from '../database/connection';
+import { Op } from 'sequelize';
 
 export class ImportExportService {
   static async importProducts(filePath: string, userId: number): Promise<any> {

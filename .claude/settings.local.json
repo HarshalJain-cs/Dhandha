@@ -14,7 +14,12 @@
       "Bash(npm run:*)",
       "Bash(tsc)",
       "Bash(npx tsc:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill //F //PID 57920)",
+      "Bash(taskkill //F //PID 38864)",
+      "Bash(cmd //c taskkill //PID 10860 //F)"
     ]
   },
   "enableAllProjectMcpServers": true,

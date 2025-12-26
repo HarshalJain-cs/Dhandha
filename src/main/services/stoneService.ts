@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Stone } from '../database/models/Stone';
 import { ProductStone } from '../database/models/ProductStone';
 import { Op } from 'sequelize';

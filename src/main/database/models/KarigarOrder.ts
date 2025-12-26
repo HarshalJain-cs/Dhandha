@@ -1,4 +1,4 @@
-import { DataTypes, Model, Optional } from 'sequelize';
+import { DataTypes, Model, Optional, Op } from 'sequelize';
 import { sequelize } from '../connection';
 
 /**
@@ -163,7 +163,7 @@ export class KarigarOrder extends Model<KarigarOrderAttributes, KarigarOrderCrea
     const orders = await KarigarOrder.findAll({
       where: {
         order_number: {
-          [sequelize.Sequelize.Op.like]: pattern,
+          [Op.like]: pattern,
         },
       },
       order: [['order_number', 'DESC']],

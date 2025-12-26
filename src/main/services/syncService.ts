@@ -2,6 +2,7 @@ import { getSupabaseClient, isSupabaseConfigured } from './supabaseClient';
 import { SyncQueue } from '../database/models/SyncQueue';
 import { SyncStatus } from '../database/models/SyncStatus';
 import { sequelize } from '../database/connection';
+import { Op } from 'sequelize';
 
 /**
  * Sync Service
@@ -407,7 +408,7 @@ export class SyncService {
       where: {
         sync_status: 'synced',
         synced_at: {
-          [sequelize.Sequelize.Op.lt]: cutoffDate,
+          [Op.lt]: cutoffDate,
         },
       },
     });

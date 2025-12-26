@@ -1,4 +1,4 @@
-import { DataTypes, Model, Optional } from 'sequelize';
+import { DataTypes, Model, Optional, Op } from 'sequelize';
 import { sequelize } from '../connection';
 
 /**
@@ -162,7 +162,7 @@ export class Product extends Model<ProductAttributes, ProductCreationAttributes>
     const products = await Product.findAll({
       where: {
         product_code: {
-          [sequelize.Sequelize.Op.like]: pattern,
+          [Op.like]: pattern,
         },
       },
       order: [['product_code', 'DESC']],

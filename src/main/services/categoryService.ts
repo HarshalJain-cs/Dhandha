@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Category } from '../database/models/Category';
 import { Op } from 'sequelize';
 

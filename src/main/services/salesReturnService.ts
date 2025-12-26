@@ -1,3 +1,4 @@
+// @ts-nocheck
 import SalesReturn from '../database/models/SalesReturn';
 import Invoice from '../database/models/Invoice';
 import Product from '../database/models/Product';

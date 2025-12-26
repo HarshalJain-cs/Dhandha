@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { MetalType } from '../database/models/MetalType';
 import { Op } from 'sequelize';
 

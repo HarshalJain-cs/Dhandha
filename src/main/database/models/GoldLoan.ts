@@ -1,5 +1,5 @@
 import { DataTypes, Model, Optional, Sequelize } from 'sequelize';
-import sequelize from '../index';
+import { sequelize } from '../connection';
 
 /**
  * GoldLoan Attributes Interface
@@ -340,7 +340,7 @@ export class GoldLoan
     if (this.requires_approval && !this.approved_by) {
       return false;
     }
-    if (this.status !== 'sanctioned' && this.status !== 'approved') {
+    if (this.status !== 'sanctioned') {
       return false;
     }
     if (this.disbursed_date) {

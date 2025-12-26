@@ -1,4 +1,4 @@
-import { DataTypes, Model, Optional } from 'sequelize';
+import { DataTypes, Model, Optional, Op } from 'sequelize';
 import { sequelize } from '../connection';
 
 /**
@@ -96,7 +96,7 @@ export class Payment extends Model<PaymentAttributes, PaymentCreationAttributes>
     const payments = await Payment.findAll({
       where: {
         receipt_number: {
-          [sequelize.Sequelize.Op.like]: pattern,
+          [Op.like]: pattern,
         },
       },
       order: [['receipt_number', 'DESC']],

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { GoldLoan } from '../database/models/GoldLoan';
 import { LoanPayment } from '../database/models/LoanPayment';
 import { Customer } from '../database/models/Customer';

@@ -1,4 +1,4 @@
-import { DataTypes, Model, Optional } from 'sequelize';
+import { DataTypes, Model, Optional, Op } from 'sequelize';
 import { sequelize } from '../connection';
 
 /**
@@ -192,7 +192,7 @@ export class Invoice extends Model<InvoiceAttributes, InvoiceCreationAttributes>
     const invoices = await Invoice.findAll({
       where: {
         invoice_number: {
-          [sequelize.Sequelize.Op.like]: pattern,
+          [Op.like]: pattern,
         },
       },
       order: [['invoice_number', 'DESC']],

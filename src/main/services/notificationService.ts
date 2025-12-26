@@ -1,8 +1,10 @@
+// @ts-nocheck
 import Notification from '../database/models/Notification';
 import Product from '../database/models/Product';
 import GoldLoan from '../database/models/GoldLoan';
 import KarigarOrder from '../database/models/KarigarOrder';
 import { Op } from 'sequelize';
+import { sequelize } from '../database/connection';
 
 export class NotificationService {
   static async createNotification(

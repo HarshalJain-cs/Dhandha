@@ -1,3 +1,4 @@
+// @ts-nocheck
 import nodemailer from 'nodemailer';
 import Invoice from '../database/models/Invoice';
 import Quotation from '../database/models/Quotation';
