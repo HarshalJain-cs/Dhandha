@@ -178,7 +178,7 @@ const PurchaseOrderCreate: React.FC = () => {
         notes: values.notes || '',
       };
 
-      const response = await window.electronAPI.purchaseOrder.create(poData, user.user_id);
+      const response = await window.electronAPI.purchaseOrder.create(poData, user.id);
 
       if (response.success) {
         message.success('Purchase Order created successfully');

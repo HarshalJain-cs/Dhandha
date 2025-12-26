@@ -89,7 +89,7 @@ const VendorList: React.FC = () => {
     e.preventDefault();
     try {
       if (editMode && currentVendor) {
-        const response = await window.electronAPI.vendor.update(currentVendor.vendor_id, formData, user!.user_id);
+        const response = await window.electronAPI.vendor.update(currentVendor.vendor_id, formData, user!.id);
         if (response.success) {
           dispatch(updateVendorAction(response.data));
           setShowModal(false);
@@ -97,7 +97,7 @@ const VendorList: React.FC = () => {
           alert(response.message);
         }
       } else {
-        const response = await window.electronAPI.vendor.create(formData, user!.user_id);
+        const response = await window.electronAPI.vendor.create(formData, user!.id);
         if (response.success) {
           dispatch(addVendor(response.data));
           setShowModal(false);

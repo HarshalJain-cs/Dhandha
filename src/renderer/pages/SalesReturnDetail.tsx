@@ -61,7 +61,7 @@ const SalesReturnDetail: React.FC = () => {
     setLoading(true);
 
     try {
-      const response = await window.electronAPI.salesReturn.getById(returnId);
+      const response = await window.electronAPI.salesReturn.getById(Number(returnId));
 
       if (response.success) {
         const data = response.data;
@@ -92,10 +92,10 @@ const SalesReturnDetail: React.FC = () => {
     if (!returnData || !user) return false;
 
     // Cannot approve own return
-    if (returnData.created_by === user.user_id) return false;
+    if (returnData.created_by === user.id) return false;
 
-    // Only managers and admins can approve
-    if (user.role !== 'manager' && user.role !== 'admin') return false;
+    // Only managers and admins can approve (role_id: 1=admin, 2=manager)
+    if (user.role_id !== 1 && user.role_id !== 2) return false;
 
     // Only pending returns can be approved
     if (returnData.status !== 'pending') return false;
@@ -114,7 +114,7 @@ const SalesReturnDetail: React.FC = () => {
         try {
           const response = await window.electronAPI.salesReturn.approve(
             returnData.return_id,
-            user!.user_id
+            user!.id
           );
 
           if (response.success) {
@@ -133,57 +133,61 @@ const SalesReturnDetail: React.FC = () => {
 
   /**
    * Handle complete
+   * TODO: Implement complete API method
    */
   const handleComplete = () => {
-    Modal.confirm({
-      title: 'Mark as Completed?',
-      content: 'This will mark the return as completed. Ensure refund/exchange has been processed.',
-      onOk: async () => {
-        try {
-          const response = await window.electronAPI.salesReturn.updateStatus(
-            returnData.return_id,
-            'completed',
-            user!.user_id
-          );
+    message.info('Complete functionality will be implemented soon');
+    // Modal.confirm({
+    //   title: 'Mark as Completed?',
+    //   content: 'This will mark the return as completed. Ensure refund/exchange has been processed.',
+    //   onOk: async () => {
+    //     try {
+    //       const response = await window.electronAPI.salesReturn.complete(
+    //         returnData.return_id,
+    //         user!.id
+    //       );
 
-          if (response.success) {
-            message.success('Return marked as completed');
-            loadReturn(id!);
-          } else {
-            message.error(response.message || 'Failed to complete return');
-          }
-        } catch (error) {
-          console.error('Error completing return:', error);
-          message.error('An error occurred while completing return');
-        }
-      },
-    });
+    //       if (response.success) {
+    //         message.success('Return marked as completed');
+    //         loadReturn(id!);
+    //       } else {
+    //         message.error(response.message || 'Failed to complete return');
+    //       }
+    //     } catch (error) {
+    //       console.error('Error completing return:', error);
+    //       message.error('An error occurred while completing return');
+    //     }
+    //   },
+    // });
   };
 
   /**
    * Handle reject
+   * TODO: Implement reject API method
    */
   const handleReject = async (values: any) => {
-    try {
-      const response = await window.electronAPI.salesReturn.updateStatus(
-        returnData.return_id,
-        'rejected',
-        user!.user_id,
-        values.reason
-      );
+    message.info('Reject functionality will be implemented soon');
+    setShowRejectModal(false);
+    rejectForm.resetFields();
+    // try {
+    //   const response = await window.electronAPI.salesReturn.reject(
+    //     returnData.return_id,
+    //     user!.id,
+    //     values.reason
+    //   );
 
-      if (response.success) {
-        message.success('Return rejected');
-        setShowRejectModal(false);
-        rejectForm.resetFields();
-        loadReturn(id!);
-      } else {
-        message.error(response.message || 'Failed to reject return');
-      }
-    } catch (error) {
-      console.error('Error rejecting return:', error);
-      message.error('An error occurred while rejecting return');
-    }
+    //   if (response.success) {
+    //     message.success('Return rejected');
+    //     setShowRejectModal(false);
+    //     rejectForm.resetFields();
+    //     loadReturn(id!);
+    //   } else {
+    //     message.error(response.message || 'Failed to reject return');
+    //   }
+    // } catch (error) {
+    //   console.error('Error rejecting return:', error);
+    //   message.error('An error occurred while rejecting return');
+    // }
   };
 
   /**
@@ -394,7 +398,7 @@ const SalesReturnDetail: React.FC = () => {
 
       {/* Permission Warning (if user cannot approve own return) */}
       {returnData.status === 'pending' &&
-        returnData.created_by === user?.user_id && (
+        returnData.created_by === user?.id && (
           <Card className="mt-4 border-yellow-300 bg-yellow-50">
             <div className="flex items-start">
               <div className="text-yellow-600 mr-3">⚠️</div>

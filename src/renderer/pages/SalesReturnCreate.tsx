@@ -161,7 +161,7 @@ const SalesReturnCreate: React.FC = () => {
         refund_amount: calculateReturnAmount(),
       };
 
-      const response = await window.electronAPI.salesReturn.create(returnData, user.user_id);
+      const response = await window.electronAPI.salesReturn.create(returnData, user.id);
 
       if (response.success) {
         message.success('Sales return created successfully');

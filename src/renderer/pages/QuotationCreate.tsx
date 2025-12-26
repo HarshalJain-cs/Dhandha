@@ -351,7 +351,7 @@ const QuotationCreate: React.FC = () => {
         terms,
       };
 
-      const response = await window.electronAPI.quotation.create(quotationData, user.user_id);
+      const response = await window.electronAPI.quotation.create(quotationData, user.id);
 
       if (response.success) {
         message.success('Quotation created successfully');

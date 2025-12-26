@@ -59,7 +59,7 @@ const QuotationDetail: React.FC = () => {
     setLoading(true);
 
     try {
-      const response = await window.electronAPI.quotation.getById(quotationId);
+      const response = await window.electronAPI.quotation.getById(Number(quotationId));
 
       if (response.success) {
         const data = response.data;
@@ -92,7 +92,7 @@ const QuotationDetail: React.FC = () => {
         try {
           const response = await window.electronAPI.quotation.convertToInvoice(
             quotation.quotation_id,
-            user!.user_id
+            user!.id
           );
 
           if (response.success) {
@@ -126,7 +126,7 @@ const QuotationDetail: React.FC = () => {
           const response = await window.electronAPI.quotation.updateStatus(
             quotation.quotation_id,
             status,
-            user!.user_id
+            user!.id
           );
 
           if (response.success) {

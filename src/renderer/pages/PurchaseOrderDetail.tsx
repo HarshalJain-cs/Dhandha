@@ -65,7 +65,7 @@ const PurchaseOrderDetail: React.FC = () => {
     setLoading(true);
 
     try {
-      const response = await window.electronAPI.purchaseOrder.getById(poId);
+      const response = await window.electronAPI.purchaseOrder.getById(Number(poId));
 
       if (response.success) {
         const data = response.data;
@@ -97,7 +97,7 @@ const PurchaseOrderDetail: React.FC = () => {
       const response = await window.electronAPI.purchaseOrder.receive(
         po.purchase_order_id,
         values.received_quantity,
-        user.user_id
+        user.id
       );
 
       if (response.success) {
@@ -124,7 +124,7 @@ const PurchaseOrderDetail: React.FC = () => {
       const response = await window.electronAPI.purchaseOrder.cancel(
         po.purchase_order_id,
         values.reason,
-        user.user_id
+        user.id
       );
 
       if (response.success) {

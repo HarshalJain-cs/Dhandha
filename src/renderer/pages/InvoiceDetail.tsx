@@ -435,7 +435,7 @@ const InvoiceDetail: React.FC = () => {
 
           <Divider />
 
-          <Descriptions column={2} size="large">
+          <Descriptions column={2} size="default">
             <Descriptions.Item label={<strong>Grand Total</strong>}>
               <span className="text-2xl font-bold text-green-600">
                 ₹{Number(invoice.grand_total).toFixed(2)}
@@ -449,7 +449,7 @@ const InvoiceDetail: React.FC = () => {
           </Descriptions>
 
           {invoice.balance_due > 0 && (
-            <Descriptions column={1} size="large">
+            <Descriptions column={1} size="default">
               <Descriptions.Item label={<strong>Balance Due</strong>}>
                 <span className="text-2xl font-bold text-red-600">
                   ₹{Number(invoice.balance_due).toFixed(2)}

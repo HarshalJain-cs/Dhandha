@@ -126,13 +126,13 @@ export class CustomerService {
       }
 
       // Generate customer code if not provided
-      let customerCode = data.customer_code;
+      let customerCode: string = data.customer_code || '';
       if (!customerCode) {
         const codeResponse = await this.generateCustomerCode();
         if (!codeResponse.success) {
           return codeResponse;
         }
-        customerCode = codeResponse.data.customer_code;
+        customerCode = codeResponse.data?.customer_code || '';
       } else {
         // Check if customer code is unique
         const existingCode = await Customer.findOne({

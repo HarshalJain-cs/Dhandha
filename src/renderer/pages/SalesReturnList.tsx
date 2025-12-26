@@ -31,7 +31,7 @@ const SalesReturnList: React.FC = () => {
   const handleApprove = async (returnId: number) => {
     if (confirm('Are you sure you want to approve this return?')) {
       try {
-        const response = await window.electronAPI.salesReturn.approve(returnId, user!.user_id);
+        const response = await window.electronAPI.salesReturn.approve(returnId, user!.id);
         if (response.success) {
           loadReturns();
           alert('Return approved successfully');
