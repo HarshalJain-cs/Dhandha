@@ -19,7 +19,14 @@
       "Bash(findstr:*)",
       "Bash(taskkill //F //PID 57920)",
       "Bash(taskkill //F //PID 38864)",
-      "Bash(cmd //c taskkill //PID 10860 //F)"
+      "Bash(cmd //c taskkill //PID 10860 //F)",
+      "Bash(test:*)",
+      "Bash(node -e \"console.log\\(require\\(''electron''\\).app\\)\")",
+      "Bash(node -e:*)",
+      "Bash(ELECTRON_RUN_AS_NODE=1 node_modules/.bin/electron:*)",
+      "Bash(cmd //c taskkill //PID 33772 //F)",
+      "Bash(cmd //c \"rmdir /s /q dist\")",
+      "Bash(cmd //c taskkill //PID 47308 //F)"
     ]
   },
   "enableAllProjectMcpServers": true,

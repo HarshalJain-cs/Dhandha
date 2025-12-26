@@ -2,11 +2,11 @@ import type { Configuration } from 'webpack';
 import path from 'path';
 
 /**
- * Webpack Configuration for Electron Main Process
+ * Webpack Configuration for Electron Preload Script
  */
-export const mainConfig: Configuration = {
-  entry: './src/main/index.ts',
-  target: 'electron-main',
+export const preloadConfig: Configuration = {
+  entry: './src/preload/index.ts',
+  target: 'electron-preload',
   module: {
     rules: [
       {
@@ -23,12 +23,9 @@ export const mainConfig: Configuration = {
   },
   resolve: {
     extensions: ['.ts', '.js'],
-    alias: {
-      '@main': path.resolve(__dirname, './src/main'),
-    },
   },
   output: {
-    path: path.resolve(__dirname, 'dist/main'),
+    path: path.resolve(__dirname, 'dist/preload'),
     filename: 'index.js',
   },
   node: {
@@ -37,4 +34,4 @@ export const mainConfig: Configuration = {
   },
 };
 
-export default mainConfig;
+export default preloadConfig;

@@ -25,7 +25,7 @@ const createWindow = (): void => {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, '../preload/index.js'),
+      preload: path.join(__dirname, '../../dist/preload/index.js'),
     },
     title: 'Jewellery ERP System',
     icon: path.join(__dirname, '../../assets/icon.png'),
@@ -33,7 +33,9 @@ const createWindow = (): void => {
   });
 
   // Load the app
-  if (process.env.NODE_ENV === 'development') {
+  const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
+
+  if (isDev) {
     // Load from Vite dev server in development
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
