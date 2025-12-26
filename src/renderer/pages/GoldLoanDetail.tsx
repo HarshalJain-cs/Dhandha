@@ -84,16 +84,13 @@ const GoldLoanDetail: React.FC = () => {
 
   /**
    * Load payment history
-   * TODO: Implement getPayments API method
    */
   const loadPayments = async (loanId: number) => {
     try {
-      // const response = await window.electronAPI.goldLoan.getPayments(loanId);
-      // if (response.success) {
-      //   dispatch(setPayments(response.data));
-      // }
-      // Payments will be loaded with loan details for now
-      console.log('Payment history will be loaded with loan details');
+      const response = await window.electronAPI.goldLoan.getPayments(loanId);
+      if (response.success) {
+        dispatch(setPayments(response.data));
+      }
     } catch (error) {
       console.error('Error loading payments:', error);
     }

@@ -811,6 +811,39 @@ export class GoldLoanService {
   }
 
   /**
+   * Get payment history for a loan
+   */
+  static async getPayments(loanId: number): Promise<GoldLoanServiceResponse> {
+    try {
+      const loan = await GoldLoan.findByPk(loanId);
+
+      if (!loan) {
+        return {
+          success: false,
+          message: 'Loan not found',
+        };
+      }
+
+      const payments = await LoanPayment.findAll({
+        where: { loan_id: loanId },
+        order: [['payment_date', 'DESC']],
+      });
+
+      return {
+        success: true,
+        message: 'Payments retrieved successfully',
+        data: payments,
+      };
+    } catch (error: any) {
+      console.error('Error fetching payments:', error);
+      return {
+        success: false,
+        message: 'An error occurred while fetching payments',
+      };
+    }
+  }
+
+  /**
    * Calculate current interest for a loan
    */
   static async calculateCurrentInterest(loanId: number): Promise<GoldLoanServiceResponse> {

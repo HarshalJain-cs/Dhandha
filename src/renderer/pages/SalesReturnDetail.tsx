@@ -133,61 +133,55 @@ const SalesReturnDetail: React.FC = () => {
 
   /**
    * Handle complete
-   * TODO: Implement complete API method
    */
   const handleComplete = () => {
-    message.info('Complete functionality will be implemented soon');
-    // Modal.confirm({
-    //   title: 'Mark as Completed?',
-    //   content: 'This will mark the return as completed. Ensure refund/exchange has been processed.',
-    //   onOk: async () => {
-    //     try {
-    //       const response = await window.electronAPI.salesReturn.complete(
-    //         returnData.return_id,
-    //         user!.id
-    //       );
+    Modal.confirm({
+      title: 'Mark as Completed?',
+      content: 'This will mark the return as completed. Ensure refund/exchange has been processed.',
+      onOk: async () => {
+        try {
+          const response = await window.electronAPI.salesReturn.complete(
+            returnData.return_id,
+            user!.id
+          );
 
-    //       if (response.success) {
-    //         message.success('Return marked as completed');
-    //         loadReturn(id!);
-    //       } else {
-    //         message.error(response.message || 'Failed to complete return');
-    //       }
-    //     } catch (error) {
-    //       console.error('Error completing return:', error);
-    //       message.error('An error occurred while completing return');
-    //     }
-    //   },
-    // });
+          if (response.success) {
+            message.success('Return marked as completed');
+            loadReturn(id!);
+          } else {
+            message.error(response.message || 'Failed to complete return');
+          }
+        } catch (error) {
+          console.error('Error completing return:', error);
+          message.error('An error occurred while completing return');
+        }
+      },
+    });
   };
 
   /**
    * Handle reject
-   * TODO: Implement reject API method
    */
   const handleReject = async (values: any) => {
-    message.info('Reject functionality will be implemented soon');
-    setShowRejectModal(false);
-    rejectForm.resetFields();
-    // try {
-    //   const response = await window.electronAPI.salesReturn.reject(
-    //     returnData.return_id,
-    //     user!.id,
-    //     values.reason
-    //   );
+    try {
+      const response = await window.electronAPI.salesReturn.reject(
+        returnData.return_id,
+        user!.id,
+        values.reason
+      );
 
-    //   if (response.success) {
-    //     message.success('Return rejected');
-    //     setShowRejectModal(false);
-    //     rejectForm.resetFields();
-    //     loadReturn(id!);
-    //   } else {
-    //     message.error(response.message || 'Failed to reject return');
-    //   }
-    // } catch (error) {
-    //   console.error('Error rejecting return:', error);
-    //   message.error('An error occurred while rejecting return');
-    // }
+      if (response.success) {
+        message.success('Return rejected');
+        setShowRejectModal(false);
+        rejectForm.resetFields();
+        loadReturn(id!);
+      } else {
+        message.error(response.message || 'Failed to reject return');
+      }
+    } catch (error) {
+      console.error('Error rejecting return:', error);
+      message.error('An error occurred while rejecting return');
+    }
   };
 
   /**

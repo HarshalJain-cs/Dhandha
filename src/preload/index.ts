@@ -347,6 +347,9 @@ const goldLoanAPI = {
   getById: (id: number) =>
     ipcRenderer.invoke('goldLoan:getById', id),
 
+  getPayments: (loanId: number) =>
+    ipcRenderer.invoke('goldLoan:getPayments', loanId),
+
   approve: (id: number, approvedBy: number) =>
     ipcRenderer.invoke('goldLoan:approve', id, approvedBy),
 
@@ -450,6 +453,12 @@ const salesReturnAPI = {
 
   approve: (returnId: number, approvedBy: number) =>
     ipcRenderer.invoke('salesReturn:approve', returnId, approvedBy),
+
+  complete: (returnId: number, completedBy: number) =>
+    ipcRenderer.invoke('salesReturn:complete', returnId, completedBy),
+
+  reject: (returnId: number, rejectedBy: number, reason: string) =>
+    ipcRenderer.invoke('salesReturn:reject', returnId, rejectedBy, reason),
 
   processExchange: (returnId: number, newInvoiceData: any, userId: number) =>
     ipcRenderer.invoke('salesReturn:processExchange', returnId, newInvoiceData, userId),

@@ -58,6 +58,20 @@ export function setupGoldLoanHandlers(): void {
   });
 
   /**
+   * Get payment history for a loan
+   */
+  ipcMain.handle('goldLoan:getPayments', async (_event: IpcMainInvokeEvent, loanId: number) => {
+    try {
+      return await GoldLoanService.getPayments(loanId);
+    } catch (error: any) {
+      return {
+        success: false,
+        message: 'An error occurred while fetching payments',
+      };
+    }
+  });
+
+  /**
    * Approve gold loan
    */
   ipcMain.handle(

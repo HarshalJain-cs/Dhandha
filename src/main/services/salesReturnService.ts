@@ -162,6 +162,61 @@ export class SalesReturnService {
     }
   }
 
+  static async completeReturn(returnId: number, completedBy: number): Promise<any> {
+    const transaction = await sequelize.transaction();
+    try {
+      const salesReturn = await SalesReturn.findByPk(returnId);
+
+      if (!salesReturn) return { success: false, message: 'Sales return not found' };
+      if (salesReturn.status !== 'approved')
+        return { success: false, message: 'Only approved returns can be completed' };
+
+      // Mark as completed
+      await salesReturn.update(
+        {
+          status: 'completed',
+          completed_by: completedBy,
+          completed_at: new Date(),
+        },
+        { transaction }
+      );
+
+      await transaction.commit();
+      return { success: true, data: salesReturn, message: 'Return completed successfully' };
+    } catch (error: any) {
+      await transaction.rollback();
+      return { success: false, message: error.message };
+    }
+  }
+
+  static async rejectReturn(returnId: number, rejectedBy: number, reason: string): Promise<any> {
+    const transaction = await sequelize.transaction();
+    try {
+      const salesReturn = await SalesReturn.findByPk(returnId);
+
+      if (!salesReturn) return { success: false, message: 'Sales return not found' };
+      if (salesReturn.status !== 'pending')
+        return { success: false, message: 'Only pending returns can be rejected' };
+
+      // Reject the return
+      await salesReturn.update(
+        {
+          status: 'rejected',
+          rejected_by: rejectedBy,
+          rejected_at: new Date(),
+          rejection_reason: reason,
+        },
+        { transaction }
+      );
+
+      await transaction.commit();
+      return { success: true, data: salesReturn, message: 'Return rejected successfully' };
+    } catch (error: any) {
+      await transaction.rollback();
+      return { success: false, message: error.message };
+    }
+  }
+
   static async getReturnStats(): Promise<any> {
     try {
       const totalReturns = await SalesReturn.count();

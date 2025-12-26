@@ -10,6 +10,14 @@ export function setupSalesReturnHandlers(): void {
     return await SalesReturnService.approveReturn(returnId, approvedBy);
   });
 
+  ipcMain.handle('salesReturn:complete', async (event, returnId, completedBy) => {
+    return await SalesReturnService.completeReturn(returnId, completedBy);
+  });
+
+  ipcMain.handle('salesReturn:reject', async (event, returnId, rejectedBy, reason) => {
+    return await SalesReturnService.rejectReturn(returnId, rejectedBy, reason);
+  });
+
   ipcMain.handle('salesReturn:processExchange', async (event, returnId, newInvoiceData, userId) => {
     return await SalesReturnService.processExchange(returnId, newInvoiceData, userId);
   });
