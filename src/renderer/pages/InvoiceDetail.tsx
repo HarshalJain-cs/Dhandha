@@ -15,12 +15,15 @@ import {
   InputNumber,
   Select,
   Input,
+  Dropdown,
+  Menu,
 } from 'antd';
 import {
   PrinterOutlined,
   ArrowLeftOutlined,
   DollarOutlined,
   StopOutlined,
+  DownOutlined,
 } from '@ant-design/icons';
 import { setCurrentInvoice, setCurrentInvoiceItems, setCurrentInvoicePayments, addPayment } from '../store/slices/invoiceSlice';
 import dayjs from 'dayjs';
@@ -87,10 +90,27 @@ const InvoiceDetail: React.FC = () => {
   };
 
   /**
-   * Handle print
+   * Handle browser print
    */
-  const handlePrint = () => {
+  const handleBrowserPrint = () => {
     window.print();
+  };
+
+  /**
+   * Handle thermal print
+   */
+  const handleThermalPrint = async () => {
+    try {
+      const response = await window.electronAPI.printer.printInvoice(parseInt(id!));
+      if (response.success) {
+        message.success('Invoice sent to thermal printer successfully');
+      } else {
+        message.error(response.message || 'Failed to print invoice');
+      }
+    } catch (error) {
+      console.error('Thermal print error:', error);
+      message.error('An error occurred while printing to thermal printer');
+    }
   };
 
   /**
@@ -309,13 +329,22 @@ const InvoiceDetail: React.FC = () => {
               Cancel Invoice
             </Button>
           )}
-          <Button
-            type="primary"
-            icon={<PrinterOutlined />}
-            onClick={handlePrint}
+          <Dropdown
+            overlay={
+              <Menu>
+                <Menu.Item key="browser" onClick={handleBrowserPrint}>
+                  Browser Print (PDF)
+                </Menu.Item>
+                <Menu.Item key="thermal" onClick={handleThermalPrint}>
+                  Thermal Printer
+                </Menu.Item>
+              </Menu>
+            }
           >
-            Print
-          </Button>
+            <Button type="primary" icon={<PrinterOutlined />}>
+              Print <DownOutlined />
+            </Button>
+          </Dropdown>
         </Space>
       </div>
 

@@ -15,7 +15,10 @@ const config: ForgeConfig = {
     icon: './assets/icon',
     asar: true,
   },
-  rebuildConfig: {},
+  rebuildConfig: {
+    onlyModules: ['sqlite3', 'usb', 'node-hid', 'serialport'],
+    force: true,
+  },
   makers: [
     new MakerSquirrel({
       name: 'JewelleryERP',

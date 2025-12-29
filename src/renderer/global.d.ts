@@ -155,6 +155,19 @@ interface ElectronAPI {
     updateInterval: (intervalMinutes: number) => Promise<any>;
     cleanup: (daysToKeep?: number) => Promise<any>;
   };
+  printer: {
+    findPrinters: () => Promise<any>;
+    connect: (printerId: string) => Promise<any>;
+    disconnect: () => Promise<any>;
+    getSettings: () => Promise<any>;
+    saveSettings: (settings: any) => Promise<any>;
+    setPaperWidth: (width: 58 | 80) => Promise<any>;
+    printInvoice: (invoiceId: number) => Promise<any>;
+    printBarcodeLabel: (productId: number) => Promise<any>;
+    printRFIDLabel: (productId: number) => Promise<any>;
+    testPrint: () => Promise<any>;
+    getStatus: () => Promise<any>;
+  };
 }
 
 declare global {

@@ -588,6 +588,44 @@ const invoiceTemplateAPI = {
 };
 
 /**
+ * Printer API
+ */
+const printerAPI = {
+  findPrinters: () =>
+    ipcRenderer.invoke('printer:findPrinters'),
+
+  connect: (printerId: string) =>
+    ipcRenderer.invoke('printer:connect', printerId),
+
+  disconnect: () =>
+    ipcRenderer.invoke('printer:disconnect'),
+
+  getSettings: () =>
+    ipcRenderer.invoke('printer:getSettings'),
+
+  saveSettings: (settings: any) =>
+    ipcRenderer.invoke('printer:saveSettings', settings),
+
+  setPaperWidth: (width: 58 | 80) =>
+    ipcRenderer.invoke('printer:setPaperWidth', width),
+
+  printInvoice: (invoiceId: number) =>
+    ipcRenderer.invoke('printer:printInvoice', invoiceId),
+
+  printBarcodeLabel: (productId: number) =>
+    ipcRenderer.invoke('printer:printBarcodeLabel', productId),
+
+  printRFIDLabel: (productId: number) =>
+    ipcRenderer.invoke('printer:printRFIDLabel', productId),
+
+  testPrint: () =>
+    ipcRenderer.invoke('printer:testPrint'),
+
+  getStatus: () =>
+    ipcRenderer.invoke('printer:getStatus'),
+};
+
+/**
  * Expose APIs to renderer process
  */
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -611,6 +649,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   notification: notificationAPI,
   importExport: importExportAPI,
   invoiceTemplate: invoiceTemplateAPI,
+  printer: printerAPI,
 });
 
 /**
@@ -638,6 +677,7 @@ export interface ElectronAPI {
   notification: typeof notificationAPI;
   importExport: typeof importExportAPI;
   invoiceTemplate: typeof invoiceTemplateAPI;
+  printer: typeof printerAPI;
 }
 
 // Extend the Window interface

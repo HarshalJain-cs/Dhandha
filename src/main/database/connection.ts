@@ -8,24 +8,31 @@ dotenv.config();
 
 const isDev = process.env.NODE_ENV !== 'production';
 
+// Get app data directory for SQLite database
+const getAppDataPath = () => {
+  const { app } = require('electron');
+  return isDev
+    ? path.join(__dirname, '../../..') // Project root in development
+    : app.getPath('userData'); // User data directory in production
+};
+
 // Database configuration
 const dbConfig = {
   development: {
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '5432'),
-    database: process.env.DB_NAME || 'jewellery_erp',
-    username: process.env.DB_USER || 'erp_admin',
-    password: process.env.DB_PASSWORD || 'jewellery2024',
-    dialect: 'postgres' as const,
+    dialect: 'sqlite' as const,
+    storage: path.join(getAppDataPath(), 'jewellery_erp.db'),
     logging: console.log,
   },
   production: {
+    dialect: process.env.DB_DIALECT === 'postgres' ? ('postgres' as const) : ('sqlite' as const),
+    // SQLite configuration
+    storage: path.join(getAppDataPath(), 'jewellery_erp.db'),
+    // PostgreSQL configuration (used only if DB_DIALECT=postgres)
     host: process.env.DB_HOST || 'localhost',
     port: parseInt(process.env.DB_PORT || '5432'),
     database: process.env.DB_NAME || 'jewellery_erp',
     username: process.env.DB_USER || 'erp_admin',
     password: process.env.DB_PASSWORD || 'jewellery2024',
-    dialect: 'postgres' as const,
     logging: false,
   },
 };
@@ -58,57 +65,39 @@ export const initializeDatabase = async (): Promise<void> => {
     // Test connection
     await sequelize.authenticate();
     console.log('✓ Database connection established successfully');
-    console.log(`  Database: ${config.database}`);
-    console.log(`  Host: ${config.host}:${config.port}`);
 
-    // Read and execute schema.sql if this is first run
-    const schemaPath = path.join(__dirname, '../../../database/schema.sql');
+    if (config.dialect === 'sqlite') {
+      console.log(`  Storage: ${config.storage}`);
+    } else {
+      console.log(`  Database: ${config.database}`);
+      console.log(`  Host: ${config.host}:${config.port}`);
+    }
 
-    // Check if tables exist
+    // Check if tables exist (SQLite-compatible query)
     const [results] = await sequelize.query(`
-      SELECT COUNT(*) as count
-      FROM information_schema.tables
-      WHERE table_schema = 'public'
-      AND table_name = 'users'
+      SELECT name FROM sqlite_master
+      WHERE type='table' AND name='users'
     `);
 
-    const tablesExist = (results[0] as any).count > 0;
+    const tablesExist = Array.isArray(results) && results.length > 0;
 
-    if (!tablesExist && fs.existsSync(schemaPath)) {
-      console.log('⚙  Running database schema...');
-      const schema = fs.readFileSync(schemaPath, 'utf-8');
-
-      // Split schema into individual statements and execute
-      const statements = schema
-        .split(';')
-        .map(stmt => stmt.trim())
-        .filter(stmt => stmt.length > 0 && !stmt.startsWith('--'));
-
-      for (const statement of statements) {
-        try {
-          await sequelize.query(statement);
-        } catch (error: any) {
-          // Ignore already exists errors
-          if (!error.message?.includes('already exists')) {
-            console.warn(`  Warning: ${error.message}`);
-          }
-        }
-      }
-
-      console.log('✓ Database schema created successfully');
+    if (!tablesExist) {
+      console.log('⚙  No existing tables found. Database will be synced from models...');
     } else {
       console.log('✓ Database schema already exists');
     }
 
-    // Sync models (only in development)
-    if (isDev) {
-      await sequelize.sync({ alter: false }); // Don't alter, use migrations
+    // Sync models in development, create tables if they don't exist
+    if (isDev || !tablesExist) {
+      await sequelize.sync({ alter: isDev }); // Alter in dev, create if tables don't exist
       console.log('✓ Database models synced');
     }
 
   } catch (error: any) {
     console.error('✗ Database connection failed:', error.message);
-    console.error('  Make sure PostgreSQL is running and credentials are correct');
+    if (!isDev && config.dialect === 'postgres') {
+      console.error('  Make sure PostgreSQL is running and credentials are correct');
+    }
     throw error;
   }
 };

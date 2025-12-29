@@ -7,6 +7,18 @@ import path from 'path';
 export const mainConfig: Configuration = {
   entry: './src/main/index.ts',
   target: 'electron-main',
+  externals: {
+    electron: 'commonjs electron',
+    sequelize: 'commonjs sequelize',
+    pg: 'commonjs pg',
+    'pg-hstore': 'commonjs pg-hstore',
+    sqlite3: 'commonjs sqlite3',
+    tedious: 'commonjs tedious',
+    'pg-native': 'commonjs pg-native',
+    usb: 'commonjs usb',
+    'node-hid': 'commonjs node-hid',
+    serialport: 'commonjs serialport',
+  },
   module: {
     rules: [
       {

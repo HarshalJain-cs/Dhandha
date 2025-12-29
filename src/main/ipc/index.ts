@@ -18,6 +18,7 @@ import { setupAuditHandlers } from './auditHandlers';
 import { setupNotificationHandlers } from './notificationHandlers';
 import { setupImportExportHandlers } from './importExportHandlers';
 import { setupInvoiceTemplateHandlers } from './invoiceTemplateHandlers';
+import { setupPrinterHandlers } from './printerHandlers';
 
 /**
  * IPC Handlers Index
@@ -81,6 +82,9 @@ export const setupAllHandlers = (): void => {
 
   // Setup invoice template handlers
   setupInvoiceTemplateHandlers();
+
+  // Setup printer handlers
+  setupPrinterHandlers();
 
   console.log('✓ All IPC handlers registered successfully');
 };

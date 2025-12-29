@@ -31,6 +31,7 @@ import SalesReturnList from './pages/SalesReturnList';
 import SalesReturnCreate from './pages/SalesReturnCreate';
 import SalesReturnDetail from './pages/SalesReturnDetail';
 import AuditLog from './pages/AuditLog';
+import Settings from './pages/Settings';
 
 /**
  * Main Application Component
@@ -376,6 +377,18 @@ const App: React.FC = () => {
             <PrivateRoute>
               <MainLayout>
                 <AuditLog />
+              </MainLayout>
+            </PrivateRoute>
+          }
+        />
+
+        {/* Settings Route */}
+        <Route
+          path="/settings"
+          element={
+            <PrivateRoute>
+              <MainLayout>
+                <Settings />
               </MainLayout>
             </PrivateRoute>
           }
