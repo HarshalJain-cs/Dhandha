@@ -18,6 +18,7 @@ import Quotation from './Quotation';
 import QuotationItem from './QuotationItem';
 import AuditLog from './AuditLog';
 import Notification from './Notification';
+import License from './License';
 
 /**
  * Database Models Index
@@ -157,6 +158,7 @@ export {
   QuotationItem,
   AuditLog,
   Notification,
+  License,
 };
 
 /**
@@ -183,6 +185,7 @@ export default {
   QuotationItem,
   AuditLog,
   Notification,
+  License,
   setupAssociations,
   initializeModels,
 };

@@ -588,6 +588,29 @@ const invoiceTemplateAPI = {
 };
 
 /**
+ * License API
+ */
+const licenseAPI = {
+  activate: (licenseKey: string) =>
+    ipcRenderer.invoke('license:activate', { licenseKey }),
+
+  validate: () =>
+    ipcRenderer.invoke('license:validate'),
+
+  deactivate: () =>
+    ipcRenderer.invoke('license:deactivate'),
+
+  getInfo: () =>
+    ipcRenderer.invoke('license:get-info'),
+
+  getHardwareId: () =>
+    ipcRenderer.invoke('license:get-hardware-id'),
+
+  getHardwareInfo: () =>
+    ipcRenderer.invoke('license:get-hardware-info'),
+};
+
+/**
  * Printer API
  */
 const printerAPI = {
@@ -626,10 +649,65 @@ const printerAPI = {
 };
 
 /**
+ * Update API
+ */
+const updateAPI = {
+  check: (silent?: boolean) =>
+    ipcRenderer.invoke('update:check', silent),
+
+  download: () =>
+    ipcRenderer.invoke('update:download'),
+
+  install: () =>
+    ipcRenderer.invoke('update:install'),
+
+  getStatus: () =>
+    ipcRenderer.invoke('update:getStatus'),
+
+  getSettings: () =>
+    ipcRenderer.invoke('update:getSettings'),
+
+  updateSettings: (settings: any) =>
+    ipcRenderer.invoke('update:updateSettings', settings),
+
+  // Event listeners
+  onChecking: (callback: () => void) => {
+    ipcRenderer.on('update:checking', callback);
+    return () => ipcRenderer.removeListener('update:checking', callback);
+  },
+
+  onAvailable: (callback: (info: any) => void) => {
+    ipcRenderer.on('update:available', (_event, info) => callback(info));
+    return () => ipcRenderer.removeAllListeners('update:available');
+  },
+
+  onNotAvailable: (callback: (info: any) => void) => {
+    ipcRenderer.on('update:not-available', (_event, info) => callback(info));
+    return () => ipcRenderer.removeAllListeners('update:not-available');
+  },
+
+  onDownloadProgress: (callback: (progress: any) => void) => {
+    ipcRenderer.on('update:download-progress', (_event, progress) => callback(progress));
+    return () => ipcRenderer.removeAllListeners('update:download-progress');
+  },
+
+  onDownloaded: (callback: (info: any) => void) => {
+    ipcRenderer.on('update:downloaded', (_event, info) => callback(info));
+    return () => ipcRenderer.removeAllListeners('update:downloaded');
+  },
+
+  onError: (callback: (error: string) => void) => {
+    ipcRenderer.on('update:error', (_event, error) => callback(error));
+    return () => ipcRenderer.removeAllListeners('update:error');
+  },
+};
+
+/**
  * Expose APIs to renderer process
  */
 contextBridge.exposeInMainWorld('electronAPI', {
   auth: authAPI,
+  license: licenseAPI,
   sync: syncAPI,
   product: productAPI,
   category: categoryAPI,
@@ -650,6 +728,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   importExport: importExportAPI,
   invoiceTemplate: invoiceTemplateAPI,
   printer: printerAPI,
+  update: updateAPI,
 });
 
 /**
@@ -658,6 +737,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
  */
 export interface ElectronAPI {
   auth: typeof authAPI;
+  license: typeof licenseAPI;
   sync: typeof syncAPI;
   product: typeof productAPI;
   category: typeof categoryAPI;
@@ -678,6 +758,7 @@ export interface ElectronAPI {
   importExport: typeof importExportAPI;
   invoiceTemplate: typeof invoiceTemplateAPI;
   printer: typeof printerAPI;
+  update: typeof updateAPI;
 }
 
 // Extend the Window interface

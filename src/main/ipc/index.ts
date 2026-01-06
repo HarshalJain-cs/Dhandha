@@ -1,4 +1,5 @@
 import { setupAuthHandlers } from './authHandlers';
+import { setupLicenseHandlers } from './licenseHandlers';
 import { setupSyncHandlers } from './syncHandlers';
 import { setupProductHandlers } from './productHandlers';
 import { setupCategoryHandlers } from './categoryHandlers';
@@ -19,6 +20,7 @@ import { setupNotificationHandlers } from './notificationHandlers';
 import { setupImportExportHandlers } from './importExportHandlers';
 import { setupInvoiceTemplateHandlers } from './invoiceTemplateHandlers';
 import { setupPrinterHandlers } from './printerHandlers';
+import { setupUpdateHandlers } from './updateHandlers';
 
 /**
  * IPC Handlers Index
@@ -33,6 +35,9 @@ export const setupAllHandlers = (): void => {
 
   // Setup authentication handlers
   setupAuthHandlers();
+
+  // Setup license handlers
+  setupLicenseHandlers();
 
   // Setup sync handlers
   setupSyncHandlers();
@@ -85,6 +90,9 @@ export const setupAllHandlers = (): void => {
 
   // Setup printer handlers
   setupPrinterHandlers();
+
+  // Setup update handlers
+  setupUpdateHandlers();
 
   console.log('✓ All IPC handlers registered successfully');
 };

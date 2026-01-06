@@ -1,9 +1,10 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from './store';
 import { setUser, clearUser } from './store/slices/authSlice';
 import Login from './pages/Login';
+import LicenseActivation from './pages/LicenseActivation';
 import Dashboard from './pages/Dashboard';
 import PrivateRoute from './components/PrivateRoute';
 import MainLayout from './components/MainLayout';
@@ -32,6 +33,7 @@ import SalesReturnCreate from './pages/SalesReturnCreate';
 import SalesReturnDetail from './pages/SalesReturnDetail';
 import AuditLog from './pages/AuditLog';
 import Settings from './pages/Settings';
+import UpdateNotification from './components/UpdateNotification';
 
 /**
  * Main Application Component
@@ -39,6 +41,36 @@ import Settings from './pages/Settings';
 const App: React.FC = () => {
   const dispatch = useDispatch();
   const { isAuthenticated, token } = useSelector((state: RootState) => state.auth);
+  const [licenseValid, setLicenseValid] = useState<boolean | null>(null);
+  const [licenseWarning, setLicenseWarning] = useState<string | null>(null);
+
+  /**
+   * Validate license on app load
+   */
+  useEffect(() => {
+    const validateLicense = async () => {
+      try {
+        const result = await window.electronAPI.license.validate();
+
+        if (result.valid) {
+          setLicenseValid(true);
+          setLicenseWarning(result.warningMessage || null);
+
+          if (result.warningMessage) {
+            console.warn('License warning:', result.warningMessage);
+          }
+        } else {
+          setLicenseValid(false);
+          console.warn('No valid license found:', result.error);
+        }
+      } catch (error) {
+        console.error('License validation error:', error);
+        setLicenseValid(false);
+      }
+    };
+
+    validateLicense();
+  }, []);
 
   /**
    * Validate token on app load
@@ -69,9 +101,55 @@ const App: React.FC = () => {
     validateToken();
   }, [dispatch]);
 
+  // Show loading state while validating license
+  if (licenseValid === null) {
+    return (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100vh',
+        flexDirection: 'column',
+        gap: '16px'
+      }}>
+        <div className="spinner" style={{
+          width: 50,
+          height: 50,
+          border: '4px solid #f3f3f3',
+          borderTop: '4px solid #667eea',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite'
+        }} />
+        <div style={{ color: '#666' }}>Validating license...</div>
+        <style>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    );
+  }
+
+  // If license is not valid, show activation page
+  if (!licenseValid) {
+    return (
+      <BrowserRouter>
+        <Routes>
+          <Route path="*" element={<LicenseActivation />} />
+        </Routes>
+      </BrowserRouter>
+    );
+  }
+
+  // License is valid, show normal app
   return (
     <BrowserRouter>
+      <UpdateNotification />
       <Routes>
+        {/* License Activation Route (accessible even if licensed) */}
+        <Route path="/license-activation" element={<LicenseActivation />} />
+
         {/* Public Routes */}
         <Route
           path="/login"

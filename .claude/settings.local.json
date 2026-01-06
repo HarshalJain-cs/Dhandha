@@ -63,7 +63,9 @@
       "Bash(if [ -d \"../../$dir/.github/workflows\" ])",
       "Bash(then echo \"  GitHub Actions: Yes\")",
       "Bash(if [ -f \"../../$dir/docker-compose.yml\" ])",
-      "Bash(then echo \"  Docker Compose: Yes\")"
+      "Bash(then echo \"  Docker Compose: Yes\")",
+      "Bash(ls:*)",
+      "Bash(npm test)"
     ]
   },
   "enableAllProjectMcpServers": true,

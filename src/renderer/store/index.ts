@@ -15,6 +15,7 @@ import salesReturnReducer from './slices/salesReturnSlice';
 import quotationReducer from './slices/quotationSlice';
 import auditReducer from './slices/auditSlice';
 import notificationReducer from './slices/notificationSlice';
+import updateReducer from './slices/updateSlice';
 
 /**
  * Redux Store Configuration
@@ -37,6 +38,7 @@ export const store = configureStore({
     quotation: quotationReducer,
     audit: auditReducer,
     notification: notificationReducer,
+    update: updateReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

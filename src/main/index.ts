@@ -3,6 +3,8 @@ import path from 'path';
 import { initializeDatabase } from './database/connection';
 import { initializeModels } from './database/models';
 import { setupAllHandlers } from './ipc';
+import licenseService from './services/licenseService';
+import updateService from './services/updateService';
 
 /**
  * Main Electron Process
@@ -57,6 +59,33 @@ const createWindow = (): void => {
 };
 
 /**
+ * Validate license before starting application
+ */
+const validateLicense = async (): Promise<boolean> => {
+  try {
+    console.log('🔐 Validating license...');
+
+    const result = await licenseService.validateLicense();
+
+    if (result.valid) {
+      console.log('✓ License is valid');
+
+      if (result.warningMessage) {
+        console.warn('⚠️', result.warningMessage);
+      }
+
+      return true;
+    } else {
+      console.warn('✗ License validation failed:', result.error);
+      return false;
+    }
+  } catch (error: any) {
+    console.error('✗ License validation error:', error);
+    return false;
+  }
+};
+
+/**
  * Initialize the application
  */
 const initializeApp = async (): Promise<void> => {
@@ -68,13 +97,30 @@ const initializeApp = async (): Promise<void> => {
     await initializeDatabase();
     await initializeModels();
 
-    // Setup IPC handlers
+    // Setup IPC handlers (needed for license activation UI)
     setupAllHandlers();
+
+    // Validate license
+    const licenseValid = await validateLicense();
 
     // Create application window
     await createWindow();
 
-    console.log('✓ Application started successfully');
+    // Initialize auto-updater (only in production mode)
+    const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
+    if (!isDev && mainWindow && licenseValid) {
+      console.log('⚙  Initializing auto-updater...');
+      await updateService.init(mainWindow);
+      console.log('✓ Auto-updater initialized');
+    }
+
+    // If license is not valid, the app will show the activation page
+    // This is handled in the React router (App.tsx)
+    if (!licenseValid) {
+      console.log('⚠️ Application started in activation mode (no valid license)');
+    } else {
+      console.log('✓ Application started successfully');
+    }
   } catch (error: any) {
     console.error('✗ Failed to initialize application:', error);
     app.quit();
@@ -105,6 +151,8 @@ app.on('activate', () => {
 // Handle before quit
 app.on('before-quit', async () => {
   console.log('⚙  Shutting down application...');
+  // Cleanup update service
+  updateService.cleanup();
   // Close database connections and cleanup
   const { closeDatabaseConnection } = await import('./database/connection');
   await closeDatabaseConnection();
