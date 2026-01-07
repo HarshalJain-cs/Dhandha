@@ -5,6 +5,7 @@ import { initializeModels } from './database/models';
 import { setupAllHandlers } from './ipc';
 import licenseService from './services/licenseService';
 import updateService from './services/updateService';
+import postgresService from './services/postgresService';
 
 /**
  * Main Electron Process
@@ -92,6 +93,11 @@ const initializeApp = async (): Promise<void> => {
   try {
     console.log('🚀 Starting Jewellery ERP System...');
 
+    // Initialize PostgreSQL service first
+    console.log('⚙  Starting PostgreSQL...');
+    await postgresService.init();
+    console.log('✓ PostgreSQL started successfully');
+
     // Initialize database
     console.log('⚙  Initializing database...');
     await initializeDatabase();
@@ -149,14 +155,33 @@ app.on('activate', () => {
 });
 
 // Handle before quit
-app.on('before-quit', async () => {
+app.on('before-quit', async (event) => {
   console.log('⚙  Shutting down application...');
-  // Cleanup update service
-  updateService.cleanup();
-  // Close database connections and cleanup
-  const { closeDatabaseConnection } = await import('./database/connection');
-  await closeDatabaseConnection();
-  console.log('✓ Application shutdown complete');
+
+  // Prevent default to allow graceful shutdown
+  event.preventDefault();
+
+  try {
+    // Cleanup update service
+    updateService.cleanup();
+
+    // Close database connections
+    const { closeDatabaseConnection } = await import('./database/connection');
+    await closeDatabaseConnection();
+    console.log('✓ Database connections closed');
+
+    // Stop PostgreSQL service
+    console.log('⚙  Stopping PostgreSQL...');
+    await postgresService.stop();
+    console.log('✓ PostgreSQL stopped');
+
+    console.log('✓ Application shutdown complete');
+  } catch (error) {
+    console.error('✗ Error during shutdown:', error);
+  } finally {
+    // Force exit after cleanup
+    app.exit(0);
+  }
 });
 
 // Prevent multiple instances

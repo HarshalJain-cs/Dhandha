@@ -2,6 +2,7 @@ import type { ForgeConfig } from '@electron-forge/shared-types';
 import { MakerSquirrel } from '@electron-forge/maker-squirrel';
 import { MakerZIP } from '@electron-forge/maker-zip';
 import { WebpackPlugin } from '@electron-forge/plugin-webpack';
+import { PublisherGithub } from '@electron-forge/publisher-github';
 import { mainConfig } from './webpack.main.config';
 import { rendererConfig } from './webpack.renderer.config';
 
@@ -12,8 +13,14 @@ const config: ForgeConfig = {
   packagerConfig: {
     name: 'Jewellery ERP',
     executableName: 'jewellery-erp',
-    icon: './assets/icon',
     asar: true,
+    extraResource: [
+      {
+        from: 'postgres',
+        to: 'postgres',
+        filter: ['**/*'],
+      },
+    ],
   },
   rebuildConfig: {
     onlyModules: ['sqlite3', 'usb', 'node-hid', 'serialport'],
@@ -22,7 +29,6 @@ const config: ForgeConfig = {
   makers: [
     new MakerSquirrel({
       name: 'JewelleryERP',
-      setupIcon: './assets/icon.ico',
     }),
     new MakerZIP({}, ['darwin', 'linux']),
   ],
@@ -42,6 +48,16 @@ const config: ForgeConfig = {
           },
         ],
       },
+    }),
+  ],
+  publishers: [
+    new PublisherGithub({
+      repository: {
+        owner: 'HarshalJain-cs',
+        name: 'Dhandha',
+      },
+      prerelease: false,
+      draft: true, // Create draft first for review
     }),
   ],
 };

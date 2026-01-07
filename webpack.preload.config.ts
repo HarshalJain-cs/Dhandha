@@ -24,10 +24,6 @@ export const preloadConfig: Configuration = {
   resolve: {
     extensions: ['.ts', '.js'],
   },
-  output: {
-    path: path.resolve(__dirname, 'dist/preload'),
-    filename: 'index.js',
-  },
   node: {
     __dirname: false,
     __filename: false,

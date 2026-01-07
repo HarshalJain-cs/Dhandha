@@ -1,103 +1,96 @@
 import { Sequelize } from 'sequelize';
-import path from 'path';
-import fs from 'fs';
-import dotenv from 'dotenv';
-
-// Load environment variables
-dotenv.config();
+import postgresService from '../services/postgresService';
+import log from 'electron-log';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
-// Get app data directory for SQLite database
-const getAppDataPath = () => {
-  const { app } = require('electron');
-  return isDev
-    ? path.join(__dirname, '../../..') // Project root in development
-    : app.getPath('userData'); // User data directory in production
+// Sequelize instance - will be initialized with PostgreSQL connection
+export let sequelize: Sequelize;
+
+/**
+ * Check if database tables exist (PostgreSQL)
+ */
+const checkTablesExist = async (): Promise<boolean> => {
+  try {
+    const [results] = await sequelize.query(`
+      SELECT table_name
+      FROM information_schema.tables
+      WHERE table_schema = 'public' AND table_name = 'users'
+    `);
+
+    return Array.isArray(results) && results.length > 0;
+  } catch (error) {
+    log.error('Error checking if tables exist:', error);
+    return false;
+  }
 };
 
-// Database configuration
-const dbConfig = {
-  development: {
-    dialect: 'sqlite' as const,
-    storage: path.join(getAppDataPath(), 'jewellery_erp.db'),
-    logging: console.log,
-  },
-  production: {
-    dialect: process.env.DB_DIALECT === 'postgres' ? ('postgres' as const) : ('sqlite' as const),
-    // SQLite configuration
-    storage: path.join(getAppDataPath(), 'jewellery_erp.db'),
-    // PostgreSQL configuration (used only if DB_DIALECT=postgres)
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '5432'),
-    database: process.env.DB_NAME || 'jewellery_erp',
-    username: process.env.DB_USER || 'erp_admin',
-    password: process.env.DB_PASSWORD || 'jewellery2024',
-    logging: false,
-  },
+/**
+ * Run database migrations
+ */
+const runMigrations = async (): Promise<void> => {
+  try {
+    log.info('Running database migrations...');
+    // Import and run migrations using Umzug
+    const { runMigrations: executeMigrations } = await import('../../scripts/run-migrations');
+    await executeMigrations();
+    log.info('✓ Database migrations completed successfully');
+  } catch (error) {
+    log.error('✗ Database migration failed:', error);
+    throw error;
+  }
 };
-
-const config = isDev ? dbConfig.development : dbConfig.production;
-
-// Create Sequelize instance
-export const sequelize = new Sequelize({
-  ...config,
-  pool: {
-    max: 10,
-    min: 0,
-    acquire: 30000,
-    idle: 10000,
-  },
-  define: {
-    timestamps: true,
-    underscored: true,
-  },
-});
 
 /**
  * Initialize database connection
+ * - Connects to PostgreSQL via postgresService
  * - Tests connection
- * - Runs schema if needed
- * - Syncs models in development
+ * - Runs migrations if needed
  */
 export const initializeDatabase = async (): Promise<void> => {
   try {
+    // Get PostgreSQL connection string from service
+    const connectionString = postgresService.getConnectionString();
+
+    log.info('Initializing database connection...');
+
+    // Create Sequelize instance with PostgreSQL
+    sequelize = new Sequelize(connectionString, {
+      dialect: 'postgres',
+      logging: isDev ? (msg) => log.info(msg) : false,
+      pool: {
+        max: 10,
+        min: 0,
+        acquire: 30000,
+        idle: 10000,
+      },
+      define: {
+        timestamps: true,
+        underscored: true,
+      },
+    });
+
     // Test connection
     await sequelize.authenticate();
-    console.log('✓ Database connection established successfully');
+    log.info('✓ Database connection established successfully');
 
-    if (config.dialect === 'sqlite') {
-      console.log(`  Storage: ${config.storage}`);
-    } else {
-      console.log(`  Database: ${config.database}`);
-      console.log(`  Host: ${config.host}:${config.port}`);
-    }
+    const config = postgresService.getConnectionConfig();
+    log.info(`  Database: ${config.database}`);
+    log.info(`  Host: ${config.host}:${config.port}`);
 
-    // Check if tables exist (SQLite-compatible query)
-    const [results] = await sequelize.query(`
-      SELECT name FROM sqlite_master
-      WHERE type='table' AND name='users'
-    `);
-
-    const tablesExist = Array.isArray(results) && results.length > 0;
+    // Check if tables exist
+    const tablesExist = await checkTablesExist();
 
     if (!tablesExist) {
-      console.log('⚙  No existing tables found. Database will be synced from models...');
+      log.info('⚙  No existing tables found. Running migrations...');
+      await runMigrations();
     } else {
-      console.log('✓ Database schema already exists');
-    }
-
-    // Sync models in development, create tables if they don't exist
-    if (isDev || !tablesExist) {
-      await sequelize.sync({ alter: isDev }); // Alter in dev, create if tables don't exist
-      console.log('✓ Database models synced');
+      log.info('✓ Database schema already exists');
     }
 
   } catch (error: any) {
-    console.error('✗ Database connection failed:', error.message);
-    if (!isDev && config.dialect === 'postgres') {
-      console.error('  Make sure PostgreSQL is running and credentials are correct');
-    }
+    log.error('✗ Database connection failed:', error.message);
+    log.error('  Make sure PostgreSQL service is running');
     throw error;
   }
 };

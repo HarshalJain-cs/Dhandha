@@ -1,0 +1,18 @@
+{
+  "development": {
+    "dialect": "postgres",
+    "host": "localhost",
+    "port": 54320,
+    "database": "jewellery_erp",
+    "username": "postgres",
+    "password": "REPLACE_WITH_GENERATED_PASSWORD"
+  },
+  "production": {
+    "dialect": "postgres",
+    "host": "localhost",
+    "port": 54320,
+    "database": "jewellery_erp",
+    "username": "postgres",
+    "password": "REPLACE_WITH_GENERATED_PASSWORD"
+  }
+}

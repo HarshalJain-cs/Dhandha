@@ -39,10 +39,6 @@ export const mainConfig: Configuration = {
       '@main': path.resolve(__dirname, './src/main'),
     },
   },
-  output: {
-    path: path.resolve(__dirname, 'dist/main'),
-    filename: 'index.js',
-  },
   node: {
     __dirname: false,
     __filename: false,

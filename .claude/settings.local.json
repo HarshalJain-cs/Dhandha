@@ -65,7 +65,10 @@
       "Bash(if [ -f \"../../$dir/docker-compose.yml\" ])",
       "Bash(then echo \"  Docker Compose: Yes\")",
       "Bash(ls:*)",
-      "Bash(npm test)"
+      "Bash(npm test)",
+      "Bash(if [ -f \"forge.config.ts\" ])",
+      "Bash(then echo \"File exists\")",
+      "Bash(else echo \"File does not exist\")"
     ]
   },
   "enableAllProjectMcpServers": true,

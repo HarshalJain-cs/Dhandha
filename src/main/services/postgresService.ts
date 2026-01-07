@@ -1,0 +1,292 @@
+import { app } from 'electron';
+import path from 'path';
+import fs from 'fs/promises';
+import { spawn, ChildProcess } from 'child_process';
+import log from 'electron-log';
+import crypto from 'crypto';
+
+/**
+ * PostgreSQL Configuration
+ */
+interface PostgresConfig {
+  port: number;
+  dataDir: string;
+  binDir: string;
+  password: string;
+}
+
+/**
+ * PostgreSQL Service
+ * Manages portable PostgreSQL bundled with the Electron app
+ */
+class PostgresService {
+  private process: ChildProcess | null = null;
+  private config: PostgresConfig;
+  private isRunning = false;
+
+  constructor() {
+    const isProd = app.isPackaged;
+    const appPath = isProd ? process.resourcesPath : app.getAppPath();
+
+    this.config = {
+      port: 54320, // Non-standard port to avoid conflicts
+      dataDir: path.join(app.getPath('userData'), 'postgres-data'),
+      binDir: path.join(appPath, 'postgres', 'bin'),
+      password: this.generateSecurePassword(),
+    };
+
+    log.info('PostgreSQL config:', {
+      port: this.config.port,
+      dataDir: this.config.dataDir,
+      binDir: this.config.binDir,
+    });
+  }
+
+  /**
+   * Initialize PostgreSQL - create data directory if first run
+   */
+  async init(): Promise<void> {
+    try {
+      const dataExists = await this.checkDataDirectory();
+
+      if (!dataExists) {
+        log.info('First run - initializing PostgreSQL data directory');
+        await this.initDatabase();
+      }
+
+      await this.start();
+    } catch (error) {
+      log.error('PostgreSQL initialization failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Check if data directory exists
+   */
+  private async checkDataDirectory(): Promise<boolean> {
+    try {
+      await fs.access(this.config.dataDir);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Initialize PostgreSQL data directory (first run only)
+   */
+  private async initDatabase(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const initdb = path.join(this.config.binDir, 'initdb.exe');
+
+      log.info('Running initdb:', initdb);
+
+      const initProcess = spawn(initdb, [
+        '-D',
+        this.config.dataDir,
+        '-U',
+        'postgres',
+        '--pwfile=-',
+        '--encoding=UTF8',
+        '--locale=C',
+      ]);
+
+      // Send password via stdin
+      initProcess.stdin.write(this.config.password + '\n');
+      initProcess.stdin.end();
+
+      let output = '';
+      let errorOutput = '';
+
+      initProcess.stdout?.on('data', (data) => {
+        output += data.toString();
+        log.info(`initdb stdout: ${data}`);
+      });
+
+      initProcess.stderr?.on('data', (data) => {
+        errorOutput += data.toString();
+        log.info(`initdb stderr: ${data}`);
+      });
+
+      initProcess.on('close', (code) => {
+        if (code === 0) {
+          log.info('PostgreSQL data directory initialized successfully');
+          resolve();
+        } else {
+          log.error('initdb failed with code:', code);
+          log.error('initdb output:', output);
+          log.error('initdb error:', errorOutput);
+          reject(new Error(`initdb exited with code ${code}: ${errorOutput}`));
+        }
+      });
+
+      initProcess.on('error', (error) => {
+        log.error('Failed to spawn initdb:', error);
+        reject(error);
+      });
+    });
+  }
+
+  /**
+   * Start PostgreSQL server
+   */
+  async start(): Promise<void> {
+    if (this.isRunning) {
+      log.warn('PostgreSQL already running');
+      return;
+    }
+
+    return new Promise((resolve, reject) => {
+      const postgres = path.join(this.config.binDir, 'postgres.exe');
+
+      log.info('Starting PostgreSQL:', postgres);
+
+      this.process = spawn(postgres, [
+        '-D',
+        this.config.dataDir,
+        '-p',
+        this.config.port.toString(),
+        '-h',
+        'localhost',
+      ]);
+
+      let startupOutput = '';
+
+      this.process.stdout?.on('data', (data) => {
+        const output = data.toString();
+        startupOutput += output;
+        log.info(`PostgreSQL: ${output.trim()}`);
+
+        // Check for successful startup message
+        if (output.includes('ready to accept connections')) {
+          this.isRunning = true;
+          log.info('PostgreSQL started successfully');
+          resolve();
+        }
+      });
+
+      this.process.stderr?.on('data', (data) => {
+        const output = data.toString();
+        startupOutput += output;
+        log.info(`PostgreSQL: ${output.trim()}`);
+
+        // PostgreSQL outputs startup messages to stderr
+        if (output.includes('ready to accept connections')) {
+          this.isRunning = true;
+          log.info('PostgreSQL started successfully');
+          resolve();
+        }
+      });
+
+      this.process.on('close', (code) => {
+        log.info(`PostgreSQL exited with code ${code}`);
+        this.isRunning = false;
+        this.process = null;
+      });
+
+      this.process.on('error', (error) => {
+        log.error('Failed to spawn PostgreSQL:', error);
+        reject(error);
+      });
+
+      // Timeout after 30 seconds
+      setTimeout(() => {
+        if (!this.isRunning) {
+          log.error('PostgreSQL failed to start within 30 seconds');
+          log.error('Startup output:', startupOutput);
+          reject(new Error('PostgreSQL failed to start within 30 seconds'));
+        }
+      }, 30000);
+    });
+  }
+
+  /**
+   * Stop PostgreSQL server gracefully
+   */
+  async stop(): Promise<void> {
+    if (!this.process || !this.isRunning) {
+      log.info('PostgreSQL not running, nothing to stop');
+      return;
+    }
+
+    return new Promise((resolve) => {
+      const pg_ctl = path.join(this.config.binDir, 'pg_ctl.exe');
+
+      log.info('Stopping PostgreSQL gracefully');
+
+      const stopProcess = spawn(pg_ctl, [
+        'stop',
+        '-D',
+        this.config.dataDir,
+        '-m',
+        'fast',
+      ]);
+
+      stopProcess.on('close', (code) => {
+        log.info(`pg_ctl stop exited with code ${code}`);
+        this.isRunning = false;
+        this.process = null;
+        resolve();
+      });
+
+      stopProcess.on('error', (error) => {
+        log.error('pg_ctl stop failed:', error);
+        // Force kill after error
+        if (this.process) {
+          this.process.kill('SIGKILL');
+        }
+        this.isRunning = false;
+        this.process = null;
+        resolve();
+      });
+
+      // Force kill after 10 seconds if graceful shutdown fails
+      setTimeout(() => {
+        if (this.isRunning && this.process) {
+          log.warn('Force killing PostgreSQL after timeout');
+          this.process.kill('SIGKILL');
+          this.isRunning = false;
+          this.process = null;
+        }
+        resolve();
+      }, 10000);
+    });
+  }
+
+  /**
+   * Get connection string for Sequelize
+   */
+  getConnectionString(): string {
+    return `postgres://postgres:${this.config.password}@localhost:${this.config.port}/jewellery_erp`;
+  }
+
+  /**
+   * Get connection config object
+   */
+  getConnectionConfig() {
+    return {
+      host: 'localhost',
+      port: this.config.port,
+      database: 'jewellery_erp',
+      username: 'postgres',
+      password: this.config.password,
+    };
+  }
+
+  /**
+   * Generate secure random password
+   */
+  private generateSecurePassword(): string {
+    return crypto.randomBytes(32).toString('hex');
+  }
+
+  /**
+   * Check if PostgreSQL is running
+   */
+  isActive(): boolean {
+    return this.isRunning;
+  }
+}
+
+export default new PostgresService();
