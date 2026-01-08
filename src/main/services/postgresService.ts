@@ -1,6 +1,7 @@
 import { app } from 'electron';
 import path from 'path';
-import fs from 'fs/promises';
+import fs from 'fs';
+import fsp from 'fs/promises';
 import { spawn, ChildProcess } from 'child_process';
 import log from 'electron-log';
 import crypto from 'crypto';
@@ -66,7 +67,7 @@ class PostgresService {
    */
   private async checkDataDirectory(): Promise<boolean> {
     try {
-      await fs.access(this.config.dataDir);
+      await fsp.access(this.config.dataDir);
       return true;
     } catch {
       return false;
@@ -79,22 +80,23 @@ class PostgresService {
   private async initDatabase(): Promise<void> {
     return new Promise((resolve, reject) => {
       const initdb = path.join(this.config.binDir, 'initdb.exe');
+      const pwFile = path.join(this.config.dataDir, '..', 'pgpass.tmp');
 
       log.info('Running initdb:', initdb);
+
+      // Create temporary password file
+      fs.writeFileSync(pwFile, this.config.password);
 
       const initProcess = spawn(initdb, [
         '-D',
         this.config.dataDir,
         '-U',
         'postgres',
-        '--pwfile=-',
+        `--pwfile=${pwFile}`,
         '--encoding=UTF8',
         '--locale=C',
+        '--data-checksums',
       ]);
-
-      // Send password via stdin
-      initProcess.stdin.write(this.config.password + '\n');
-      initProcess.stdin.end();
 
       let output = '';
       let errorOutput = '';
@@ -110,6 +112,13 @@ class PostgresService {
       });
 
       initProcess.on('close', (code) => {
+        // Delete temporary password file
+        try {
+          fs.unlinkSync(pwFile);
+        } catch (e) {
+          log.warn('Failed to delete temporary password file:', e);
+        }
+
         if (code === 0) {
           log.info('PostgreSQL data directory initialized successfully');
           resolve();
@@ -122,6 +131,12 @@ class PostgresService {
       });
 
       initProcess.on('error', (error) => {
+        // Delete temporary password file on error
+        try {
+          fs.unlinkSync(pwFile);
+        } catch (e) {
+          // Ignore
+        }
         log.error('Failed to spawn initdb:', error);
         reject(error);
       });

@@ -1,6 +1,10 @@
 import { Sequelize } from 'sequelize';
 import postgresService from '../services/postgresService';
 import log from 'electron-log';
+import { Umzug, SequelizeStorage } from 'umzug';
+import path from 'path';
+import { createRequire } from 'module';
+import { fileURLToPath } from 'url';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -31,10 +35,55 @@ const checkTablesExist = async (): Promise<boolean> => {
 const runMigrations = async (): Promise<void> => {
   try {
     log.info('Running database migrations...');
-    // Import and run migrations using Umzug
-    const { runMigrations: executeMigrations } = await import('../../scripts/run-migrations');
-    await executeMigrations();
-    log.info('✓ Database migrations completed successfully');
+
+    // Create Umzug instance
+    // In webpack bundle, migrations are copied to .webpack/main/database/migrations
+    const migrationsDir = path.join(__dirname, 'database', 'migrations');
+    const migrationsPath = path.join(migrationsDir, '*.js').replace(/\\/g, '/');
+    log.info(`Looking for migrations in: ${migrationsPath}`);
+
+    // Create a require function that can load files from disk (not webpack bundle)
+    const customRequire = createRequire(import.meta.url || 'file://' + __filename);
+
+    const umzug = new Umzug({
+      migrations: {
+        glob: migrationsPath,
+        resolve: ({ name, path: migrationPath }) => {
+          // Use Node's native require to load migration from disk
+          const migration = customRequire(migrationPath);
+          return {
+            name,
+            up: async (params) => migration.up(params.context, params.context.sequelize.Sequelize),
+            down: async (params) => migration.down(params.context, params.context.sequelize.Sequelize),
+          };
+        },
+      },
+      context: sequelize.getQueryInterface(),
+      storage: new SequelizeStorage({ sequelize }),
+      logger: {
+        info: (message) => log.info(message),
+        warn: (message) => log.warn(message),
+        error: (message) => log.error(message),
+        debug: (message) => log.debug(message),
+      },
+    });
+
+    // Check for pending migrations
+    const pending = await umzug.pending();
+
+    if (pending.length === 0) {
+      log.info('No pending migrations');
+      return;
+    }
+
+    log.info(`Found ${pending.length} pending migrations`);
+    pending.forEach((migration) => {
+      log.info(`  - ${migration.name}`);
+    });
+
+    // Run migrations
+    await umzug.up();
+    log.info('✓ All migrations completed successfully');
   } catch (error) {
     log.error('✗ Database migration failed:', error);
     throw error;
@@ -44,17 +93,47 @@ const runMigrations = async (): Promise<void> => {
 /**
  * Initialize database connection
  * - Connects to PostgreSQL via postgresService
+ * - Creates database if it doesn't exist
  * - Tests connection
  * - Runs migrations if needed
  */
 export const initializeDatabase = async (): Promise<void> => {
   try {
-    // Get PostgreSQL connection string from service
-    const connectionString = postgresService.getConnectionString();
-
+    const config = postgresService.getConnectionConfig();
     log.info('Initializing database connection...');
 
-    // Create Sequelize instance with PostgreSQL
+    // First, connect to the default 'postgres' database to check/create our database
+    const defaultConnectionString = `postgres://postgres:${config.password}@${config.host}:${config.port}/postgres`;
+    const defaultSequelize = new Sequelize(defaultConnectionString, {
+      dialect: 'postgres',
+      logging: false,
+    });
+
+    try {
+      await defaultSequelize.authenticate();
+      log.info('✓ Connected to PostgreSQL server');
+
+      // Check if our database exists
+      const [results] = await defaultSequelize.query(
+        `SELECT 1 FROM pg_database WHERE datname = '${config.database}'`
+      );
+
+      if (!Array.isArray(results) || results.length === 0) {
+        log.info(`⚙  Creating database: ${config.database}`);
+        await defaultSequelize.query(`CREATE DATABASE ${config.database}`);
+        log.info(`✓ Database ${config.database} created successfully`);
+      } else {
+        log.info(`✓ Database ${config.database} already exists`);
+      }
+
+      await defaultSequelize.close();
+    } catch (error: any) {
+      log.error('✗ Failed to connect to PostgreSQL server:', error.message);
+      throw error;
+    }
+
+    // Now connect to our application database
+    const connectionString = postgresService.getConnectionString();
     sequelize = new Sequelize(connectionString, {
       dialect: 'postgres',
       logging: isDev ? (msg) => log.info(msg) : false,
@@ -70,11 +149,8 @@ export const initializeDatabase = async (): Promise<void> => {
       },
     });
 
-    // Test connection
     await sequelize.authenticate();
     log.info('✓ Database connection established successfully');
-
-    const config = postgresService.getConnectionConfig();
     log.info(`  Database: ${config.database}`);
     log.info(`  Host: ${config.host}:${config.port}`);
 

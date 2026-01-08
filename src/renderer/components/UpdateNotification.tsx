@@ -25,6 +25,12 @@ const UpdateNotification: React.FC = () => {
    * Setup event listeners from main process
    */
   useEffect(() => {
+    // Check if electronAPI is available
+    if (!window.electronAPI || !window.electronAPI.update) {
+      console.warn('Update API not available - auto-update features will be disabled');
+      return;
+    }
+
     // Checking for update
     const unsubscribeChecking = window.electronAPI.update.onChecking(() => {
       dispatch(setChecking(true));

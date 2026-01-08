@@ -1,5 +1,6 @@
 import type { Configuration } from 'webpack';
 import path from 'path';
+import CopyWebpackPlugin from 'copy-webpack-plugin';
 
 /**
  * Webpack Configuration for Electron Main Process
@@ -39,6 +40,16 @@ export const mainConfig: Configuration = {
       '@main': path.resolve(__dirname, './src/main'),
     },
   },
+  plugins: [
+    new CopyWebpackPlugin({
+      patterns: [
+        {
+          from: path.resolve(__dirname, 'database/migrations'),
+          to: path.resolve(__dirname, '.webpack/main/database/migrations'),
+        },
+      ],
+    }),
+  ],
   node: {
     __dirname: false,
     __filename: false,

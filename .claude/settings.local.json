@@ -68,7 +68,12 @@
       "Bash(npm test)",
       "Bash(if [ -f \"forge.config.ts\" ])",
       "Bash(then echo \"File exists\")",
-      "Bash(else echo \"File does not exist\")"
+      "Bash(else echo \"File does not exist\")",
+      "Bash(cmd /c \"rmdir /s /q C:\\\\Users\\\\Admin\\\\AppData\\\\Roaming\\\\jewellery-erp-desktop\\\\postgres-data\")",
+      "Bash(cmd /c \"dir .webpack\\\\main\\\\database 2>nul || echo Directory not found\")",
+      "Bash(cmd /c \"if exist .webpack\\\\main \\(dir /B .webpack\\\\main | head -10\\) else \\(echo .webpack\\\\main does not exist\\)\")",
+      "Bash(cmd //c \"rmdir /s /q C:\\\\Users\\\\Admin\\\\AppData\\\\Roaming\\\\jewellery-erp-desktop\\\\postgres-data\")",
+      "Bash(tasklist:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

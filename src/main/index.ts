@@ -1,10 +1,6 @@
 import { app, BrowserWindow } from 'electron';
 import path from 'path';
 import { initializeDatabase } from './database/connection';
-import { initializeModels } from './database/models';
-import { setupAllHandlers } from './ipc';
-import licenseService from './services/licenseService';
-import updateService from './services/updateService';
 import postgresService from './services/postgresService';
 
 /**
@@ -66,6 +62,8 @@ const validateLicense = async (): Promise<boolean> => {
   try {
     console.log('🔐 Validating license...');
 
+    // Dynamically import licenseService after models are initialized
+    const licenseService = (await import('./services/licenseService')).default;
     const result = await licenseService.validateLicense();
 
     if (result.valid) {
@@ -101,9 +99,13 @@ const initializeApp = async (): Promise<void> => {
     // Initialize database
     console.log('⚙  Initializing database...');
     await initializeDatabase();
+
+    // Dynamically import models after database is initialized
+    const { initializeModels } = await import('./database/models');
     await initializeModels();
 
-    // Setup IPC handlers (needed for license activation UI)
+    // Dynamically import and setup IPC handlers (needed for license activation UI)
+    const { setupAllHandlers } = await import('./ipc');
     setupAllHandlers();
 
     // Validate license
@@ -116,6 +118,7 @@ const initializeApp = async (): Promise<void> => {
     const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
     if (!isDev && mainWindow && licenseValid) {
       console.log('⚙  Initializing auto-updater...');
+      const updateService = (await import('./services/updateService')).default;
       await updateService.init(mainWindow);
       console.log('✓ Auto-updater initialized');
     }
@@ -163,6 +166,7 @@ app.on('before-quit', async (event) => {
 
   try {
     // Cleanup update service
+    const updateService = (await import('./services/updateService')).default;
     updateService.cleanup();
 
     // Close database connections

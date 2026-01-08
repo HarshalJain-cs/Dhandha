@@ -1,5 +1,5 @@
 import { Model, DataTypes, Optional } from 'sequelize';
-import sequelize from '../connection';
+import { sequelize } from '../connection';
 
 /**
  * License Model
