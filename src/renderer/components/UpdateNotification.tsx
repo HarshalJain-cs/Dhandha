@@ -103,7 +103,7 @@ const UpdateNotification: React.FC = () => {
               onClick={() => {
                 // Open release notes modal or link
                 if (info.releaseNotes) {
-                  notification.close(key);
+                  notification.destroy(key);
                   notification.info({
                     message: `Version ${info.version} Release Notes`,
                     description: (
@@ -131,7 +131,7 @@ const UpdateNotification: React.FC = () => {
             size="small"
             icon={<DownloadOutlined />}
             onClick={async () => {
-              notification.close(key);
+              notification.destroy(key);
               dispatch(setDownloading(true));
               await window.electronAPI.update.download();
             }}
@@ -143,7 +143,7 @@ const UpdateNotification: React.FC = () => {
             size="small"
             icon={<CloseOutlined />}
             onClick={() => {
-              notification.close(key);
+              notification.destroy(key);
             }}
           >
             Dismiss
@@ -171,7 +171,7 @@ const UpdateNotification: React.FC = () => {
             type="default"
             size="small"
             onClick={() => {
-              notification.close(key);
+              notification.destroy(key);
             }}
           >
             Install Later
@@ -180,7 +180,7 @@ const UpdateNotification: React.FC = () => {
             type="primary"
             size="small"
             onClick={async () => {
-              notification.close(key);
+              notification.destroy(key);
               await window.electronAPI.update.install();
             }}
           >

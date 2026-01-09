@@ -46,11 +46,43 @@ const Sidebar: React.FC = () => {
     if (path.startsWith('/quotations')) return 'quotations';
     if (path.startsWith('/sales-returns')) return 'sales-returns';
     if (path.startsWith('/gold-loans')) return 'gold-loans';
-    if (path.startsWith('/karigar')) return 'karigar-list';
+    if (path.startsWith('/karigar/list')) return 'karigar-list';
+    if (path.startsWith('/karigar/orders')) return 'karigar-orders';
     if (path.startsWith('/audit-log')) return 'audit-log';
     if (path.startsWith('/reports')) return 'reports';
     if (path.startsWith('/settings')) return 'settings';
     return 'dashboard';
+  };
+
+  /**
+   * Get default open keys based on current pathname
+   */
+  const getDefaultOpenKeys = (): string[] => {
+    const path = location.pathname;
+    const openKeys: string[] = [];
+
+    if (path.startsWith('/products') || path.startsWith('/categories') ||
+        path.startsWith('/metal') || path.startsWith('/stones')) {
+      openKeys.push('inventory');
+    }
+    if (path.startsWith('/billing') || path.startsWith('/quotations') ||
+        path.startsWith('/sales-returns')) {
+      openKeys.push('sales');
+    }
+    if (path.startsWith('/vendors') || path.startsWith('/purchase-orders')) {
+      openKeys.push('procurement');
+    }
+    if (path.startsWith('/karigar')) {
+      openKeys.push('manufacturing');
+    }
+    if (path.startsWith('/gold-loans') || path.startsWith('/accounting')) {
+      openKeys.push('finance');
+    }
+    if (path.startsWith('/audit-log') || path.startsWith('/settings')) {
+      openKeys.push('system');
+    }
+
+    return openKeys;
   };
 
   /**
@@ -233,6 +265,7 @@ const Sidebar: React.FC = () => {
         theme="dark"
         mode="inline"
         selectedKeys={[getSelectedKey()]}
+        defaultOpenKeys={getDefaultOpenKeys()}
         items={menuItems}
       />
     </Sider>

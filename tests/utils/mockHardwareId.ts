@@ -21,9 +21,9 @@ export const MOCK_HARDWARE_INFO = {
  */
 export function mockHardwareIdService() {
   const hardwareIdService = {
-    generateHardwareId: jest.fn().mockResolvedValue(MOCK_HARDWARE_ID),
-    getPrimaryMacAddress: jest.fn().mockReturnValue(MOCK_HARDWARE_INFO.macAddress),
-    getHardwareInfo: jest.fn().mockResolvedValue(MOCK_HARDWARE_INFO),
+    generateHardwareId: jest.fn<() => Promise<string>>().mockResolvedValue(MOCK_HARDWARE_ID),
+    getPrimaryMacAddress: jest.fn<() => string>().mockReturnValue(MOCK_HARDWARE_INFO.macAddress),
+    getHardwareInfo: jest.fn<() => Promise<typeof MOCK_HARDWARE_INFO>>().mockResolvedValue(MOCK_HARDWARE_INFO),
   };
 
   return hardwareIdService;
@@ -33,14 +33,14 @@ export function mockHardwareIdService() {
  * Mock hardware ID generation to return specific ID
  */
 export function mockHardwareIdWithValue(hardwareId: string) {
-  return jest.fn().mockResolvedValue(hardwareId);
+  return jest.fn<() => Promise<string>>().mockResolvedValue(hardwareId);
 }
 
 /**
  * Mock hardware ID generation to throw error
  */
 export function mockHardwareIdError(errorMessage: string = 'Hardware ID generation failed') {
-  return jest.fn().mockRejectedValue(new Error(errorMessage));
+  return jest.fn<() => Promise<string>>().mockRejectedValue(new Error(errorMessage));
 }
 
 /**
@@ -48,9 +48,9 @@ export function mockHardwareIdError(errorMessage: string = 'Hardware ID generati
  */
 export function mockDifferentMachine() {
   return {
-    generateHardwareId: jest.fn().mockResolvedValue(MOCK_ALTERNATIVE_HARDWARE_ID),
-    getPrimaryMacAddress: jest.fn().mockReturnValue('AA:BB:CC:DD:EE:FF'),
-    getHardwareInfo: jest.fn().mockResolvedValue({
+    generateHardwareId: jest.fn<() => Promise<string>>().mockResolvedValue(MOCK_ALTERNATIVE_HARDWARE_ID),
+    getPrimaryMacAddress: jest.fn<() => string>().mockReturnValue('AA:BB:CC:DD:EE:FF'),
+    getHardwareInfo: jest.fn<() => Promise<any>>().mockResolvedValue({
       machineId: 'different-machine-id',
       macAddress: 'AA:BB:CC:DD:EE:FF',
       cpu: 'AMD Ryzen 5-5678',

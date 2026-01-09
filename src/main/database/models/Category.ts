@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { DataTypes, Model, Optional } from 'sequelize';
 import { sequelize } from '../connection';
 
@@ -67,7 +66,7 @@ export class Category
    */
   public async getFullPath(): Promise<string> {
     const path: string[] = [this.category_name];
-    let current = this;
+    let current: Category = this;
 
     while (current.parent_category_id) {
       const parent = await Category.findByPk(current.parent_category_id);

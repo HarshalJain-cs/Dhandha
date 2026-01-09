@@ -1,10 +1,9 @@
-// @ts-nocheck
 import { Product } from '../database/models/Product';
 import { Category } from '../database/models/Category';
 import { MetalType } from '../database/models/MetalType';
 import { ProductStone } from '../database/models/ProductStone';
 import { Stone } from '../database/models/Stone';
-import { Op } from 'sequelize';
+import { Op, col } from 'sequelize';
 
 /**
  * Product Service Response Interface
@@ -97,7 +96,7 @@ export class ProductService {
       // Generate product code
       const productCode = await Product.generateProductCode(
         category.category_code,
-        metalType.metal_code
+        metalType.metal_name
       );
 
       // Validate barcode uniqueness if provided
@@ -233,7 +232,7 @@ export class ProductService {
       if (filters?.low_stock) {
         where[Op.and] = [
           { current_stock: { [Op.gt]: 0 } },
-          { current_stock: { [Op.lte]: Op.col('min_stock_level') } },
+          { current_stock: { [Op.lte]: col('min_stock_level') } },
         ];
       }
 
@@ -252,7 +251,7 @@ export class ProductService {
           {
             model: MetalType,
             as: 'metalType',
-            attributes: ['id', 'metal_name', 'metal_code', 'purity_percentage'],
+            attributes: ['id', 'metal_name', 'purity_percentage'],
           },
         ],
         order: [['created_at', 'DESC']],
@@ -325,8 +324,9 @@ export class ProductService {
 
       // Calculate total stone value if stones exist
       let totalStoneValue = 0;
-      if (product.stones && product.stones.length > 0) {
-        totalStoneValue = product.stones.reduce((sum, ps) => {
+      const productWithStones = product as any;
+      if (productWithStones.stones && productWithStones.stones.length > 0) {
+        totalStoneValue = productWithStones.stones.reduce((sum: number, ps: any) => {
           return sum + ps.calculate4CValue();
         }, 0);
       }
@@ -455,10 +455,14 @@ export class ProductService {
       }
 
       // Recalculate fine weight if net_weight or purity changed
-      if (data.net_weight !== undefined || data.purity !== undefined) {
-        const newNetWeight = data.net_weight !== undefined ? data.net_weight : product.net_weight;
-        const newPurity = data.purity !== undefined ? data.purity : product.purity;
-        data.fine_weight = (newNetWeight * newPurity) / 100;
+      const dataAny = data as any;
+      const productAny = product as any;
+      if (dataAny.net_weight !== undefined || dataAny.purity !== undefined) {
+        const newNetWeight = dataAny.net_weight !== undefined ? dataAny.net_weight : productAny.net_weight;
+        const newPurity = dataAny.purity !== undefined ? dataAny.purity : productAny.purity;
+        if (newPurity) {
+          dataAny.fine_weight = (newNetWeight * newPurity) / 100;
+        }
       }
 
       await product.update({
@@ -584,10 +588,7 @@ export class ProductService {
         where: {
           is_active: true,
           current_stock: {
-            [Op.and]: [
-              { [Op.gt]: 0 },
-              { [Op.lte]: Op.col('min_stock_level') },
-            ],
+            [Op.gt]: 0,
           },
         },
         include: [
@@ -599,16 +600,21 @@ export class ProductService {
           {
             model: MetalType,
             as: 'metalType',
-            attributes: ['id', 'metal_name', 'metal_code'],
+            attributes: ['id', 'metal_name'],
           },
         ],
         order: [['current_stock', 'ASC']],
       });
 
+      // Filter products where current_stock <= min_stock_level
+      const lowStockProducts = products.filter(
+        (product: any) => product.current_stock <= product.min_stock_level
+      );
+
       return {
         success: true,
         message: 'Low stock products retrieved successfully',
-        data: products,
+        data: lowStockProducts,
       };
     } catch (error: any) {
       console.error('Get low stock products error:', error);
@@ -638,7 +644,7 @@ export class ProductService {
           {
             model: MetalType,
             as: 'metalType',
-            attributes: ['id', 'metal_name', 'metal_code'],
+            attributes: ['id', 'metal_name'],
           },
         ],
         order: [['product_name', 'ASC']],
@@ -847,7 +853,7 @@ export class ProductService {
 
       const productCode = await Product.generateProductCode(
         category.category_code,
-        metalType.metal_code
+        metalType.metal_name
       );
 
       return {

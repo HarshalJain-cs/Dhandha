@@ -128,7 +128,8 @@ Role.init(
       allowNull: false,
       defaultValue: [],
       validate: {
-        isArray(value: any) {
+        // @ts-ignore - Custom validator function
+        isValidArray(value: any) {
           if (!Array.isArray(value)) {
             throw new Error('Permissions must be an array');
           }

@@ -6,19 +6,26 @@ import CopyWebpackPlugin from 'copy-webpack-plugin';
  * Webpack Configuration for Electron Main Process
  */
 export const mainConfig: Configuration = {
+  mode: process.env.NODE_ENV === 'production' ? 'production' : 'development',
   entry: './src/main/index.ts',
   target: 'electron-main',
+  output: {
+    path: path.resolve(__dirname, '.webpack/main'),
+    filename: 'main.js',
+  },
+  devtool: 'source-map',
+  externalsPresets: { node: true, electron: true },
   externals: {
-    electron: 'commonjs electron',
-    sequelize: 'commonjs sequelize',
-    pg: 'commonjs pg',
-    'pg-hstore': 'commonjs pg-hstore',
-    sqlite3: 'commonjs sqlite3',
-    tedious: 'commonjs tedious',
-    'pg-native': 'commonjs pg-native',
-    usb: 'commonjs usb',
-    'node-hid': 'commonjs node-hid',
-    serialport: 'commonjs serialport',
+    electron: 'commonjs2 electron',
+    sequelize: 'commonjs2 sequelize',
+    pg: 'commonjs2 pg',
+    'pg-hstore': 'commonjs2 pg-hstore',
+    sqlite3: 'commonjs2 sqlite3',
+    tedious: 'commonjs2 tedious',
+    'pg-native': 'commonjs2 pg-native',
+    usb: 'commonjs2 usb',
+    'node-hid': 'commonjs2 node-hid',
+    serialport: 'commonjs2 serialport',
   },
   module: {
     rules: [

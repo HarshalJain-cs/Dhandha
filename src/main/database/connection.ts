@@ -3,8 +3,6 @@ import postgresService from '../services/postgresService';
 import log from 'electron-log';
 import { Umzug, SequelizeStorage } from 'umzug';
 import path from 'path';
-import { createRequire } from 'module';
-import { fileURLToPath } from 'url';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -42,15 +40,16 @@ const runMigrations = async (): Promise<void> => {
     const migrationsPath = path.join(migrationsDir, '*.js').replace(/\\/g, '/');
     log.info(`Looking for migrations in: ${migrationsPath}`);
 
-    // Create a require function that can load files from disk (not webpack bundle)
-    const customRequire = createRequire(import.meta.url || 'file://' + __filename);
-
     const umzug = new Umzug({
       migrations: {
         glob: migrationsPath,
         resolve: ({ name, path: migrationPath }) => {
-          // Use Node's native require to load migration from disk
-          const migration = customRequire(migrationPath);
+          // Load migration from disk using require
+          if (!migrationPath) {
+            throw new Error(`Migration path is undefined for migration: ${name}`);
+          }
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          const migration = require(migrationPath);
           return {
             name,
             up: async (params) => migration.up(params.context, params.context.sequelize.Sequelize),
@@ -58,8 +57,8 @@ const runMigrations = async (): Promise<void> => {
           };
         },
       },
-      context: sequelize.getQueryInterface(),
-      storage: new SequelizeStorage({ sequelize }),
+      context: sequelize!.getQueryInterface(),
+      storage: new SequelizeStorage({ sequelize: sequelize! }),
       logger: {
         info: (message) => log.info(message),
         warn: (message) => log.warn(message),
@@ -176,12 +175,16 @@ export const initializeDatabase = async (): Promise<void> => {
  */
 export const closeDatabaseConnection = async (): Promise<void> => {
   try {
-    await sequelize.close();
-    console.log('✓ Database connection closed');
+    if (sequelize) {
+      await sequelize.close();
+      console.log('✓ Database connection closed');
+    } else {
+      console.log('⚠️ Database connection not initialized, skipping close');
+    }
   } catch (error: any) {
     console.error('✗ Error closing database connection:', error.message);
   }
 };
 
-// Export sequelize instance as default
-export default sequelize;
+// Export a getter function for sequelize to handle uninitialized state
+export default { get sequelize() { return sequelize; } };

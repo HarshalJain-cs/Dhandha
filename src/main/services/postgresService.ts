@@ -22,10 +22,30 @@ interface PostgresConfig {
  */
 class PostgresService {
   private process: ChildProcess | null = null;
-  private config: PostgresConfig;
+  private config: PostgresConfig | null = null;
   private isRunning = false;
 
-  constructor() {
+  /**
+   * Get platform-specific binary path
+   * Adds .exe extension on Windows
+   * NOTE: Requires initConfig() to have been called first
+   */
+  private getBinaryPath(binary: string): string {
+    if (!this.config) {
+      throw new Error('PostgresService not initialized. Call initConfig() first.');
+    }
+    const extension = process.platform === 'win32' ? '.exe' : '';
+    return path.join(this.config.binDir, `${binary}${extension}`);
+  }
+
+  /**
+   * Lazy initialization of config - called when first needed
+   */
+  private initConfig(): void {
+    if (this.config) {
+      return; // Already initialized
+    }
+
     const isProd = app.isPackaged;
     const appPath = isProd ? process.resourcesPath : app.getAppPath();
 
@@ -47,6 +67,23 @@ class PostgresService {
    * Initialize PostgreSQL - create data directory if first run
    */
   async init(): Promise<void> {
+    this.initConfig();
+
+    // Validate PostgreSQL binaries exist
+    const binaries = ['postgres', 'initdb', 'pg_ctl'];
+    for (const bin of binaries) {
+      const binPath = this.getBinaryPath(bin);
+      if (!fs.existsSync(binPath)) {
+        const error = new Error(
+          `PostgreSQL binary not found: ${binPath}\n` +
+          `Please ensure PostgreSQL binaries are bundled in postgres/bin/`
+        );
+        log.error('Binary validation failed:', error.message);
+        throw error;
+      }
+    }
+    log.info('PostgreSQL binaries validated successfully');
+
     try {
       const dataExists = await this.checkDataDirectory();
 
@@ -67,7 +104,7 @@ class PostgresService {
    */
   private async checkDataDirectory(): Promise<boolean> {
     try {
-      await fsp.access(this.config.dataDir);
+      await fsp.access(this.config!.dataDir);
       return true;
     } catch {
       return false;
@@ -79,17 +116,17 @@ class PostgresService {
    */
   private async initDatabase(): Promise<void> {
     return new Promise((resolve, reject) => {
-      const initdb = path.join(this.config.binDir, 'initdb.exe');
-      const pwFile = path.join(this.config.dataDir, '..', 'pgpass.tmp');
+      const initdb = this.getBinaryPath('initdb');
+      const pwFile = path.join(this.config!.dataDir, '..', 'pgpass.tmp');
 
       log.info('Running initdb:', initdb);
 
       // Create temporary password file
-      fs.writeFileSync(pwFile, this.config.password);
+      fs.writeFileSync(pwFile, this.config!.password);
 
       const initProcess = spawn(initdb, [
         '-D',
-        this.config.dataDir,
+        this.config!.dataDir,
         '-U',
         'postgres',
         `--pwfile=${pwFile}`,
@@ -153,15 +190,15 @@ class PostgresService {
     }
 
     return new Promise((resolve, reject) => {
-      const postgres = path.join(this.config.binDir, 'postgres.exe');
+      const postgres = this.getBinaryPath('postgres');
 
       log.info('Starting PostgreSQL:', postgres);
 
       this.process = spawn(postgres, [
         '-D',
-        this.config.dataDir,
+        this.config!.dataDir,
         '-p',
-        this.config.port.toString(),
+        this.config!.port.toString(),
         '-h',
         'localhost',
       ]);
@@ -226,14 +263,14 @@ class PostgresService {
     }
 
     return new Promise((resolve) => {
-      const pg_ctl = path.join(this.config.binDir, 'pg_ctl.exe');
+      const pg_ctl = this.getBinaryPath('pg_ctl');
 
       log.info('Stopping PostgreSQL gracefully');
 
       const stopProcess = spawn(pg_ctl, [
         'stop',
         '-D',
-        this.config.dataDir,
+        this.config!.dataDir,
         '-m',
         'fast',
       ]);
@@ -273,19 +310,21 @@ class PostgresService {
    * Get connection string for Sequelize
    */
   getConnectionString(): string {
-    return `postgres://postgres:${this.config.password}@localhost:${this.config.port}/jewellery_erp`;
+    this.initConfig();
+    return `postgres://postgres:${this.config!.password}@localhost:${this.config!.port}/jewellery_erp`;
   }
 
   /**
    * Get connection config object
    */
   getConnectionConfig() {
+    this.initConfig();
     return {
       host: 'localhost',
-      port: this.config.port,
+      port: this.config!.port,
       database: 'jewellery_erp',
       username: 'postgres',
-      password: this.config.password,
+      password: this.config!.password,
     };
   }
 

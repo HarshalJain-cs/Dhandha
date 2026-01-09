@@ -2,7 +2,7 @@
   "name": "jewellery-erp-desktop",
   "version": "1.0.0",
   "description": "Jewellery Inventory Management Desktop Software",
-  "main": ".webpack/main",
+  "main": ".webpack/main/main.js",
   "scripts": {
     "start": "electron-forge start",
     "package": "electron-forge package",
@@ -11,7 +11,7 @@
     "dev": "concurrently \"npm run dev:main\" \"npm run dev:renderer\" \"npm run dev:electron\"",
     "dev:main": "webpack --watch --config webpack.main.config.ts",
     "dev:renderer": "vite",
-    "dev:electron": "wait-on dist/main/index.js http://localhost:5173 && electron .",
+    "dev:electron": "wait-on .webpack/main/main.js http://localhost:5173 && electron .",
     "build": "npm run build:main && npm run build:renderer && npm run build:preload",
     "build:main": "webpack --config webpack.main.config.ts",
     "build:preload": "webpack --config webpack.preload.config.ts",

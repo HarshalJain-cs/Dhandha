@@ -1,7 +1,14 @@
-import { app, BrowserWindow } from 'electron';
+// Use require for electron to avoid webpack module resolution issues
+const { app, BrowserWindow } = require('electron');
 import path from 'path';
 import { initializeDatabase } from './database/connection';
 import postgresService from './services/postgresService';
+
+/**
+ * Declare webpack entry points provided by Electron Forge
+ */
+declare const MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
+declare const MAIN_WINDOW_WEBPACK_ENTRY: string;
 
 /**
  * Main Electron Process
@@ -24,23 +31,20 @@ const createWindow = (): void => {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, '../../dist/preload/index.js'),
+      preload: MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY,
     },
     title: 'Jewellery ERP System',
     icon: path.join(__dirname, '../../assets/icon.png'),
     show: false, // Don't show until ready
   });
 
-  // Load the app
-  const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
+  // Load the app using webpack entry point
+  mainWindow.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
 
+  // Open DevTools in development
+  const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
   if (isDev) {
-    // Load from Vite dev server in development
-    mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
-  } else {
-    // Load from built files in production
-    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
   }
 
   // Show window when ready

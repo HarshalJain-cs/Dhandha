@@ -1,5 +1,4 @@
-// @ts-nocheck
-import { DataTypes, Model, Optional } from 'sequelize';
+import { DataTypes, Model, Optional, QueryTypes } from 'sequelize';
 import { sequelize } from '../connection';
 
 /**
@@ -54,7 +53,7 @@ export class MetalType
          LIMIT 1`,
         {
           replacements: { metalTypeId: this.id },
-          type: sequelize.QueryTypes.SELECT,
+          type: QueryTypes.SELECT,
         }
       );
 
