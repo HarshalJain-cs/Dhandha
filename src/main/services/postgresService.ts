@@ -24,6 +24,8 @@ class PostgresService {
   private process: ChildProcess | null = null;
   private config: PostgresConfig | null = null;
   private isRunning = false;
+  private stdoutListener: ((data: Buffer) => void) | null = null;
+  private stderrListener: ((data: Buffer) => void) | null = null;
 
   /**
    * Get platform-specific binary path
@@ -36,6 +38,23 @@ class PostgresService {
     }
     const extension = process.platform === 'win32' ? '.exe' : '';
     return path.join(this.config.binDir, `${binary}${extension}`);
+  }
+
+  /**
+   * Clean up event listeners to prevent EPIPE errors
+   * Removes stdout/stderr listeners before process termination
+   */
+  private cleanupListeners(): void {
+    if (this.process) {
+      if (this.stdoutListener) {
+        this.process.stdout?.removeListener('data', this.stdoutListener);
+        this.stdoutListener = null;
+      }
+      if (this.stderrListener) {
+        this.process.stderr?.removeListener('data', this.stderrListener);
+        this.stderrListener = null;
+      }
+    }
   }
 
   /**
@@ -205,7 +224,8 @@ class PostgresService {
 
       let startupOutput = '';
 
-      this.process.stdout?.on('data', (data) => {
+      // Create and store stdout listener
+      this.stdoutListener = (data: Buffer) => {
         const output = data.toString();
         startupOutput += output;
         log.info(`PostgreSQL: ${output.trim()}`);
@@ -216,9 +236,10 @@ class PostgresService {
           log.info('PostgreSQL started successfully');
           resolve();
         }
-      });
+      };
 
-      this.process.stderr?.on('data', (data) => {
+      // Create and store stderr listener
+      this.stderrListener = (data: Buffer) => {
         const output = data.toString();
         startupOutput += output;
         log.info(`PostgreSQL: ${output.trim()}`);
@@ -229,9 +250,14 @@ class PostgresService {
           log.info('PostgreSQL started successfully');
           resolve();
         }
-      });
+      };
+
+      // Attach stored listeners
+      this.process.stdout?.on('data', this.stdoutListener);
+      this.process.stderr?.on('data', this.stderrListener);
 
       this.process.on('close', (code) => {
+        this.cleanupListeners(); // Clean up listeners before process is set to null
         log.info(`PostgreSQL exited with code ${code}`);
         this.isRunning = false;
         this.process = null;
@@ -286,7 +312,8 @@ class PostgresService {
         log.error('pg_ctl stop failed:', error);
         // Force kill after error
         if (this.process) {
-          this.process.kill('SIGKILL');
+          this.cleanupListeners(); // Clean up before killing
+          this.process.kill('SIGTERM'); // Use SIGTERM for graceful shutdown
         }
         this.isRunning = false;
         this.process = null;
@@ -297,7 +324,8 @@ class PostgresService {
       setTimeout(() => {
         if (this.isRunning && this.process) {
           log.warn('Force killing PostgreSQL after timeout');
-          this.process.kill('SIGKILL');
+          this.cleanupListeners(); // Clean up before killing
+          this.process.kill('SIGKILL'); // Use SIGKILL as last resort
           this.isRunning = false;
           this.process = null;
         }

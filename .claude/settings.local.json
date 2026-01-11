@@ -90,7 +90,8 @@
       "Bash(./node_modules/.bin/electron:*)",
       "Bash(./node_modules/electron/dist/electron.exe simple-test.js)",
       "Bash(./node_modules/electron/dist/electron.exe .)",
-      "Bash(npm cache clean:*)"
+      "Bash(npm cache clean:*)",
+      "Bash(find:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

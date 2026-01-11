@@ -9,6 +9,8 @@ import {
   setLoading,
   setError,
 } from '../../store/slices/productSlice';
+import { setCategories } from '../../store/slices/categorySlice';
+import { setMetalTypes } from '../../store/slices/metalTypeSlice';
 
 /**
  * Product List Page
@@ -64,15 +66,13 @@ const ProductList: React.FC = () => {
       // Load categories
       const catResponse = await window.electronAPI.category.getAll({ is_active: true });
       if (catResponse.success) {
-        // Dispatch to category slice
-        // dispatch(setCategories(catResponse.data));
+        dispatch(setCategories(catResponse.data));
       }
 
       // Load metal types
       const metalResponse = await window.electronAPI.metalType.getAll({ is_active: true });
       if (metalResponse.success) {
-        // Dispatch to metalType slice
-        // dispatch(setMetalTypes(metalResponse.data));
+        dispatch(setMetalTypes(metalResponse.data));
       }
     } catch (err) {
       console.error('Failed to load categories/metal types:', err);

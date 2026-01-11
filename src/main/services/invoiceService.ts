@@ -6,6 +6,7 @@ import { Product } from '../database/models/Product';
 import { Customer } from '../database/models/Customer';
 import { MetalType } from '../database/models/MetalType';
 import { Category } from '../database/models/Category';
+import { ProductStone } from '../database/models/ProductStone';
 import { Op } from 'sequelize';
 import { sequelize } from '../database/connection';
 
@@ -143,6 +144,7 @@ export class InvoiceService {
           include: [
             { model: Category, as: 'category' },
             { model: MetalType, as: 'metalType' },
+            { model: ProductStone, as: 'stones' },
           ],
         });
 
@@ -161,6 +163,15 @@ export class InvoiceService {
             success: false,
             message: `Insufficient stock for product ${product.product_name}. Available: ${product.current_stock}, Required: ${itemData.quantity}`,
           };
+        }
+
+        // Calculate stone amount from product's stones
+        let calculatedStoneAmount = 0;
+        if ((product as any).stones && Array.isArray((product as any).stones)) {
+          calculatedStoneAmount = (product as any).stones.reduce(
+            (sum: number, stone: ProductStone) => sum + parseFloat(stone.total_value.toString()),
+            0
+          );
         }
 
         // Create invoice item instance
@@ -184,7 +195,7 @@ export class InvoiceService {
           making_charge_type: product.making_charge_type,
           making_charge_rate: product.making_charge,
           making_charge_amount: 0, // Will be calculated
-          stone_amount: 0, // TODO: Calculate from stone details
+          stone_amount: calculatedStoneAmount * itemData.quantity, // Calculate from stone details
           hsn_code: (product as any).category?.hsn_code || '71131900',
           tax_rate: (product as any).category?.tax_percentage || 3,
           metal_amount: 0,

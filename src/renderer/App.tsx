@@ -8,6 +8,7 @@ import LicenseActivation from './pages/LicenseActivation';
 import Dashboard from './pages/Dashboard';
 import PrivateRoute from './components/PrivateRoute';
 import MainLayout from './components/MainLayout';
+import ErrorBoundary from './components/ErrorBoundary';
 import { ProductList, ProductDetail, ProductForm } from './pages/products';
 import Categories from './pages/Categories';
 import Stones from './pages/Stones';
@@ -134,19 +135,22 @@ const App: React.FC = () => {
   // If license is not valid, show activation page
   if (!licenseValid) {
     return (
-      <BrowserRouter>
-        <Routes>
-          <Route path="*" element={<LicenseActivation />} />
-        </Routes>
-      </BrowserRouter>
+      <ErrorBoundary>
+        <BrowserRouter>
+          <Routes>
+            <Route path="*" element={<LicenseActivation />} />
+          </Routes>
+        </BrowserRouter>
+      </ErrorBoundary>
     );
   }
 
   // License is valid, show normal app
   return (
-    <BrowserRouter>
-      <UpdateNotification />
-      <Routes>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <UpdateNotification />
+        <Routes>
         {/* License Activation Route (accessible even if licensed) */}
         <Route path="/license-activation" element={<LicenseActivation />} />
 
@@ -485,6 +489,7 @@ const App: React.FC = () => {
         />
       </Routes>
     </BrowserRouter>
+    </ErrorBoundary>
   );
 };
 

@@ -1,6 +1,7 @@
 // Use require for electron to avoid webpack module resolution issues
 const { app, BrowserWindow } = require('electron');
 import path from 'path';
+import log from 'electron-log';
 import { initializeDatabase } from './database/connection';
 import postgresService from './services/postgresService';
 
@@ -163,7 +164,7 @@ app.on('activate', () => {
 
 // Handle before quit
 app.on('before-quit', async (event) => {
-  console.log('⚙  Shutting down application...');
+  log.info('⚙  Shutting down application...');
 
   // Prevent default to allow graceful shutdown
   event.preventDefault();
@@ -176,16 +177,16 @@ app.on('before-quit', async (event) => {
     // Close database connections
     const { closeDatabaseConnection } = await import('./database/connection');
     await closeDatabaseConnection();
-    console.log('✓ Database connections closed');
+    log.info('✓ Database connections closed');
 
     // Stop PostgreSQL service
-    console.log('⚙  Stopping PostgreSQL...');
+    log.info('⚙  Stopping PostgreSQL...');
     await postgresService.stop();
-    console.log('✓ PostgreSQL stopped');
+    log.info('✓ PostgreSQL stopped');
 
-    console.log('✓ Application shutdown complete');
+    log.info('✓ Application shutdown complete');
   } catch (error) {
-    console.error('✗ Error during shutdown:', error);
+    log.error('✗ Error during shutdown:', error);
   } finally {
     // Force exit after cleanup
     app.exit(0);

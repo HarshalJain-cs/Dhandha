@@ -3,6 +3,7 @@ import { SyncQueue } from '../database/models/SyncQueue';
 import { SyncStatus } from '../database/models/SyncStatus';
 import { sequelize } from '../database/connection';
 import { Op } from 'sequelize';
+import ConfigService from './configService';
 
 /**
  * Sync Service
@@ -11,13 +12,25 @@ import { Op } from 'sequelize';
 
 export class SyncService {
   private static syncInterval: NodeJS.Timeout | null = null;
-  private static currentBranchId: number = 1; // TODO: Get from config/settings
+
+  /**
+   * Get current branch ID from config
+   */
+  private static getCurrentBranchId(): number {
+    return ConfigService.getBranchId();
+  }
 
   /**
    * Initialize sync service
    */
-  static async initialize(branchId: number = 1): Promise<void> {
-    this.currentBranchId = branchId;
+  static async initialize(branchId?: number): Promise<void> {
+    // Use provided branchId or get from config
+    const currentBranchId = branchId ?? this.getCurrentBranchId();
+
+    // Update config if branchId was provided
+    if (branchId !== undefined) {
+      ConfigService.setBranchId(branchId);
+    }
 
     if (!isSupabaseConfigured()) {
       console.log('ℹ  Supabase not configured. Sync service disabled.');
@@ -28,16 +41,16 @@ export class SyncService {
     try {
       // Get or create sync status for this branch
       let syncStatus = await SyncStatus.findOne({
-        where: { branch_id: branchId },
+        where: { branch_id: currentBranchId },
       });
 
       if (!syncStatus) {
         syncStatus = await SyncStatus.create({
-          branch_id: branchId,
+          branch_id: currentBranchId,
           sync_enabled: true,
           sync_interval_minutes: 5,
         });
-        console.log('✓ Sync status initialized for branch', branchId);
+        console.log('✓ Sync status initialized for branch', currentBranchId);
       }
 
       // Start periodic sync if enabled
@@ -95,7 +108,7 @@ export class SyncService {
     pulled: number;
   }> {
     const syncStatus = await SyncStatus.findOne({
-      where: { branch_id: this.currentBranchId },
+      where: { branch_id: this.getCurrentBranchId() },
     });
 
     if (!syncStatus || !syncStatus.sync_enabled) {
@@ -158,7 +171,7 @@ export class SyncService {
     const pendingChanges = await SyncQueue.findAll({
       where: {
         sync_status: 'pending',
-        branch_id: this.currentBranchId,
+        branch_id: this.getCurrentBranchId(),
       },
       order: [['created_at', 'ASC']],
       limit: 100, // Process in batches
@@ -201,7 +214,7 @@ export class SyncService {
 
     // Update sync status
     const syncStatus = await SyncStatus.findOne({
-      where: { branch_id: this.currentBranchId },
+      where: { branch_id: this.getCurrentBranchId() },
     });
     if (syncStatus) {
       await syncStatus.updateSyncTimestamp('push');
@@ -220,7 +233,7 @@ export class SyncService {
     }
 
     const syncStatus = await SyncStatus.findOne({
-      where: { branch_id: this.currentBranchId },
+      where: { branch_id: this.getCurrentBranchId() },
     });
 
     if (!syncStatus) {
@@ -251,7 +264,7 @@ export class SyncService {
         }
 
         // Filter out changes from current branch to avoid conflicts
-        query = query.neq('branch_id', this.currentBranchId);
+        query = query.neq('branch_id', this.getCurrentBranchId());
 
         const { data, error } = await query;
 
@@ -333,18 +346,18 @@ export class SyncService {
         operation,
         record_id: recordId,
         data,
-        branch_id: this.currentBranchId,
+        branch_id: this.getCurrentBranchId(),
       });
 
       // Update pending count
       const syncStatus = await SyncStatus.findOne({
-        where: { branch_id: this.currentBranchId },
+        where: { branch_id: this.getCurrentBranchId() },
       });
 
       if (syncStatus) {
         const pendingCount = await SyncQueue.count({
           where: {
-            branch_id: this.currentBranchId,
+            branch_id: this.getCurrentBranchId(),
             sync_status: 'pending',
           },
         });
@@ -360,7 +373,7 @@ export class SyncService {
    */
   static async getSyncStatus(): Promise<SyncStatus | null> {
     return SyncStatus.findOne({
-      where: { branch_id: this.currentBranchId },
+      where: { branch_id: this.getCurrentBranchId() },
     });
   }
 
@@ -369,7 +382,7 @@ export class SyncService {
    */
   static async toggleSync(enabled: boolean): Promise<void> {
     const syncStatus = await SyncStatus.findOne({
-      where: { branch_id: this.currentBranchId },
+      where: { branch_id: this.getCurrentBranchId() },
     });
 
     if (syncStatus) {

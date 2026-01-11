@@ -177,12 +177,12 @@ export const closeDatabaseConnection = async (): Promise<void> => {
   try {
     if (sequelize) {
       await sequelize.close();
-      console.log('✓ Database connection closed');
+      log.info('✓ Database connection closed');
     } else {
-      console.log('⚠️ Database connection not initialized, skipping close');
+      log.warn('⚠️ Database connection not initialized, skipping close');
     }
   } catch (error: any) {
-    console.error('✗ Error closing database connection:', error.message);
+    log.error('✗ Error closing database connection:', error.message);
   }
 };
 

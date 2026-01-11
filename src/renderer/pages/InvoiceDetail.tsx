@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState } from '../store';
 import {
   Card,
   Button,
@@ -39,6 +40,7 @@ const InvoiceDetail: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const printRef = useRef<HTMLDivElement>(null);
+  const { user } = useSelector((state: RootState) => state.auth);
 
   const [invoice, setInvoice] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
@@ -121,7 +123,7 @@ const InvoiceDetail: React.FC = () => {
       const response = await window.electronAPI.invoice.addPayment(
         parseInt(id!),
         values,
-        1 // TODO: Get from auth state
+        user?.id || 1
       );
 
       if (response.success) {
@@ -145,7 +147,7 @@ const InvoiceDetail: React.FC = () => {
       const response = await window.electronAPI.invoice.cancel(
         parseInt(id!),
         values.reason,
-        1 // TODO: Get from auth state
+        user?.id || 1
       );
 
       if (response.success) {

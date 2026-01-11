@@ -36,9 +36,13 @@ export class AuthService {
    */
   static async login(username: string, password: string): Promise<LoginResponse> {
     try {
+      // Trim whitespace from inputs
+      const trimmedUsername = username.trim();
+      const trimmedPassword = password.trim();
+
       // Find user by username
       const user = await User.findOne({
-        where: { username, is_active: true },
+        where: { username: trimmedUsername, is_active: true },
       });
 
       if (!user) {
@@ -49,7 +53,7 @@ export class AuthService {
       }
 
       // Verify password
-      const isPasswordValid = await user.comparePassword(password);
+      const isPasswordValid = await user.comparePassword(trimmedPassword);
       if (!isPasswordValid) {
         return {
           success: false,
