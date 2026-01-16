@@ -22,6 +22,14 @@ import QuotationItem from './QuotationItem';
 import AuditLog from './AuditLog';
 import Notification from './Notification';
 import License from './License';
+import StockTransaction from './StockTransaction';
+import Invoice from './Invoice';
+import InvoiceItem from './InvoiceItem';
+import Payment from './Payment';
+import OldGoldTransaction from './OldGoldTransaction';
+import Karigar from './Karigar';
+import KarigarOrder from './KarigarOrder';
+import MetalTransaction from './MetalTransaction';
 
 /**
  * Database Models Index
@@ -61,6 +69,7 @@ export const setupAssociations = (): void => {
   Product.belongsTo(Category, { foreignKey: 'category_id', as: 'category' });
   Product.belongsTo(MetalType, { foreignKey: 'metal_type_id', as: 'metalType' });
   Product.hasMany(ProductStone, { foreignKey: 'product_id', as: 'stones' });
+  Product.hasMany(StockTransaction, { foreignKey: 'product_id', as: 'stockTransactions' });
 
   // Customer associations
   Customer.belongsTo(User, { as: 'creator', foreignKey: 'created_by' });
@@ -131,6 +140,48 @@ export const setupAssociations = (): void => {
 
   // Notification associations
   Notification.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
+  // StockTransaction associations
+  StockTransaction.belongsTo(Product, { foreignKey: 'product_id', as: 'product' });
+  StockTransaction.belongsTo(User, { as: 'creator', foreignKey: 'created_by' });
+
+  // Invoice associations
+  Invoice.belongsTo(Customer, { foreignKey: 'customer_id', as: 'customer' });
+  Invoice.belongsTo(User, { as: 'creator', foreignKey: 'created_by' });
+  Invoice.belongsTo(User, { as: 'updater', foreignKey: 'updated_by' });
+  Invoice.hasMany(InvoiceItem, { foreignKey: 'invoice_id', as: 'items' });
+  Invoice.hasMany(Payment, { foreignKey: 'invoice_id', as: 'payments' });
+
+  // InvoiceItem associations
+  InvoiceItem.belongsTo(Invoice, { foreignKey: 'invoice_id', as: 'invoice' });
+  InvoiceItem.belongsTo(Product, { foreignKey: 'product_id', as: 'product' });
+
+  // Payment associations
+  Payment.belongsTo(Invoice, { foreignKey: 'invoice_id', as: 'invoice' });
+  Payment.belongsTo(User, { as: 'creator', foreignKey: 'created_by' });
+
+  // Customer invoice association (reverse)
+  Customer.hasMany(Invoice, { foreignKey: 'customer_id', as: 'invoices' });
+
+  // OldGoldTransaction associations
+  OldGoldTransaction.belongsTo(Invoice, { foreignKey: 'invoice_id', as: 'invoice' });
+  OldGoldTransaction.belongsTo(Customer, { foreignKey: 'customer_id', as: 'customer' });
+  OldGoldTransaction.belongsTo(User, { as: 'creator', foreignKey: 'created_by' });
+
+  // Karigar associations
+  Karigar.belongsTo(User, { as: 'creator', foreignKey: 'created_by' });
+  Karigar.belongsTo(User, { as: 'updater', foreignKey: 'updated_by' });
+  Karigar.hasMany(KarigarOrder, { foreignKey: 'karigar_id', as: 'orders' });
+
+  // KarigarOrder associations
+  KarigarOrder.belongsTo(Karigar, { foreignKey: 'karigar_id', as: 'karigar' });
+  KarigarOrder.belongsTo(Product, { foreignKey: 'product_id', as: 'product' });
+  KarigarOrder.belongsTo(User, { as: 'creator', foreignKey: 'created_by' });
+  KarigarOrder.belongsTo(User, { as: 'updater', foreignKey: 'updated_by' });
+
+  // MetalTransaction associations
+  MetalTransaction.belongsTo(MetalType, { foreignKey: 'metal_type_id', as: 'metalType' });
+  MetalTransaction.belongsTo(User, { as: 'creator', foreignKey: 'created_by' });
 };
 
 /**
@@ -177,6 +228,14 @@ export {
   AuditLog,
   Notification,
   License,
+  StockTransaction,
+  Invoice,
+  InvoiceItem,
+  Payment,
+  OldGoldTransaction,
+  Karigar,
+  KarigarOrder,
+  MetalTransaction,
 };
 
 /**
@@ -207,6 +266,14 @@ export default {
   AuditLog,
   Notification,
   License,
+  StockTransaction,
+  Invoice,
+  InvoiceItem,
+  Payment,
+  OldGoldTransaction,
+  Karigar,
+  KarigarOrder,
+  MetalTransaction,
   setupAssociations,
   initializeModels,
 };

@@ -3,7 +3,10 @@ import { Category } from '../database/models/Category';
 import { MetalType } from '../database/models/MetalType';
 import { ProductStone } from '../database/models/ProductStone';
 import { Stone } from '../database/models/Stone';
+import { StockTransaction } from '../database/models/StockTransaction';
+import { User } from '../database/models/User';
 import { Op, col } from 'sequelize';
+import { sequelize } from '../database/connection';
 
 /**
  * Product Service Response Interface
@@ -523,27 +526,42 @@ export class ProductService {
     id: number,
     quantity: number,
     operation: 'add' | 'subtract' | 'set',
-    updated_by: number
+    updated_by: number,
+    options?: {
+      transaction_type?: 'purchase' | 'sale' | 'adjustment' | 'return' | 'transfer' | 'production';
+      reference_type?: string;
+      reference_id?: number;
+      notes?: string;
+      unit_cost?: number;
+    }
   ): Promise<ProductServiceResponse> {
+    const transaction = await sequelize.transaction();
+
     try {
-      const product = await Product.findByPk(id);
+      const product = await Product.findByPk(id, { transaction });
 
       if (!product) {
+        await transaction.rollback();
         return {
           success: false,
           message: 'Product not found',
         };
       }
 
-      let newStock = product.current_stock;
+      const oldStock = product.current_stock;
+      let newStock = oldStock;
+      let quantityChange = 0;
 
       switch (operation) {
         case 'add':
           newStock += quantity;
+          quantityChange = quantity;
           break;
         case 'subtract':
           newStock -= quantity;
+          quantityChange = -quantity;
           if (newStock < 0) {
+            await transaction.rollback();
             return {
               success: false,
               message: 'Insufficient stock',
@@ -551,14 +569,39 @@ export class ProductService {
           }
           break;
         case 'set':
+          quantityChange = quantity - oldStock;
           newStock = quantity;
           break;
       }
 
+      // Update product stock
       await product.update({
         current_stock: newStock,
         updated_by,
-      });
+      }, { transaction });
+
+      // Create stock transaction record
+      const transactionType = options?.transaction_type ||
+        (quantityChange > 0 ? 'purchase' : quantityChange < 0 ? 'sale' : 'adjustment');
+
+      const totalValue = options?.unit_cost
+        ? Math.abs(quantityChange) * options.unit_cost
+        : null;
+
+      await StockTransaction.create({
+        product_id: id,
+        transaction_type: transactionType,
+        quantity: quantityChange,
+        running_balance: newStock,
+        unit_cost: options?.unit_cost || null,
+        total_value: totalValue,
+        reference_type: options?.reference_type || null,
+        reference_id: options?.reference_id || null,
+        notes: options?.notes || null,
+        created_by: updated_by,
+      }, { transaction });
+
+      await transaction.commit();
 
       const stockAlert = product.checkStockLevel();
 
@@ -568,9 +611,13 @@ export class ProductService {
         data: {
           product,
           stock_alert: stockAlert,
+          previous_stock: oldStock,
+          new_stock: newStock,
+          quantity_change: quantityChange,
         },
       };
     } catch (error: any) {
+      await transaction.rollback();
       console.error('Update stock error:', error);
       return {
         success: false,
@@ -866,6 +913,199 @@ export class ProductService {
       return {
         success: false,
         message: 'An error occurred while generating product code',
+      };
+    }
+  }
+
+  /**
+   * Get stock transaction history for a product
+   */
+  static async getStockHistory(
+    productId: number,
+    filters?: {
+      transaction_type?: string;
+      start_date?: Date;
+      end_date?: Date;
+    },
+    pagination?: {
+      page?: number;
+      limit?: number;
+    }
+  ): Promise<ProductServiceResponse> {
+    try {
+      const page = pagination?.page || 1;
+      const limit = pagination?.limit || 50;
+      const offset = (page - 1) * limit;
+
+      const whereClause: any = {
+        product_id: productId,
+      };
+
+      if (filters?.transaction_type) {
+        whereClause.transaction_type = filters.transaction_type;
+      }
+
+      if (filters?.start_date || filters?.end_date) {
+        whereClause.created_at = {};
+        if (filters.start_date) {
+          whereClause.created_at[Op.gte] = filters.start_date;
+        }
+        if (filters.end_date) {
+          whereClause.created_at[Op.lte] = filters.end_date;
+        }
+      }
+
+      const { count, rows } = await StockTransaction.findAndCountAll({
+        where: whereClause,
+        include: [
+          {
+            model: User,
+            as: 'creator',
+            attributes: ['id', 'full_name', 'email'],
+          },
+        ],
+        order: [['created_at', 'DESC']],
+        limit,
+        offset,
+      });
+
+      return {
+        success: true,
+        message: 'Stock history retrieved successfully',
+        data: {
+          transactions: rows,
+          pagination: {
+            page,
+            limit,
+            total: count,
+            totalPages: Math.ceil(count / limit),
+          },
+        },
+      };
+    } catch (error: any) {
+      console.error('Get stock history error:', error);
+      return {
+        success: false,
+        message: 'An error occurred while retrieving stock history',
+      };
+    }
+  }
+
+  /**
+   * Get stock summary for charts (aggregated data)
+   */
+  static async getStockSummary(
+    productId: number,
+    days: number = 30
+  ): Promise<ProductServiceResponse> {
+    try {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+
+      // Get all transactions for the period
+      const transactions = await StockTransaction.findAll({
+        where: {
+          product_id: productId,
+          created_at: {
+            [Op.gte]: startDate,
+          },
+        },
+        order: [['created_at', 'ASC']],
+        attributes: ['id', 'transaction_type', 'quantity', 'running_balance', 'created_at'],
+      });
+
+      // Calculate summary statistics
+      const totalIn = transactions
+        .filter((t) => t.quantity > 0)
+        .reduce((sum, t) => sum + t.quantity, 0);
+
+      const totalOut = transactions
+        .filter((t) => t.quantity < 0)
+        .reduce((sum, t) => sum + Math.abs(t.quantity), 0);
+
+      // Get current stock
+      const product = await Product.findByPk(productId, {
+        attributes: ['current_stock'],
+      });
+
+      const currentStock = product?.current_stock || 0;
+
+      // Format data for chart (group by date)
+      const chartData: any[] = [];
+      const dateMap = new Map<string, { date: string; balance: number }>();
+
+      transactions.forEach((transaction) => {
+        const date = transaction.created_at.toISOString().split('T')[0];
+        dateMap.set(date, {
+          date,
+          balance: transaction.running_balance,
+        });
+      });
+
+      dateMap.forEach((value) => {
+        chartData.push(value);
+      });
+
+      return {
+        success: true,
+        message: 'Stock summary retrieved successfully',
+        data: {
+          summary: {
+            totalIn,
+            totalOut,
+            current: currentStock,
+          },
+          chart: chartData,
+          transactions: transactions.map((t) => ({
+            date: t.created_at,
+            type: t.transaction_type,
+            quantity: t.quantity,
+            balance: t.running_balance,
+          })),
+        },
+      };
+    } catch (error: any) {
+      console.error('Get stock summary error:', error);
+      return {
+        success: false,
+        message: 'An error occurred while retrieving stock summary',
+      };
+    }
+  }
+
+  /**
+   * Get recent stock activity for timeline
+   */
+  static async getStockActivity(
+    productId: number,
+    limit: number = 20
+  ): Promise<ProductServiceResponse> {
+    try {
+      const activities = await StockTransaction.findAll({
+        where: {
+          product_id: productId,
+        },
+        include: [
+          {
+            model: User,
+            as: 'creator',
+            attributes: ['id', 'full_name', 'email'],
+          },
+        ],
+        order: [['created_at', 'DESC']],
+        limit,
+      });
+
+      return {
+        success: true,
+        message: 'Stock activity retrieved successfully',
+        data: activities,
+      };
+    } catch (error: any) {
+      console.error('Get stock activity error:', error);
+      return {
+        success: false,
+        message: 'An error occurred while retrieving stock activity',
       };
     }
   }

@@ -1,6 +1,45 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
+import {
+  Table,
+  Button,
+  Space,
+  Tag,
+  Input,
+  Select,
+  Card,
+  Row,
+  Col,
+  Statistic,
+  Dropdown,
+  message,
+  Modal,
+  Image,
+  Empty,
+  Badge,
+  Tooltip,
+  InputNumber,
+  Collapse,
+  Switch,
+} from 'antd';
+import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
+import {
+  PlusOutlined,
+  SearchOutlined,
+  FilterOutlined,
+  ReloadOutlined,
+  BarcodeOutlined,
+  WifiOutlined,
+  ExportOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  EyeOutlined,
+  StockOutlined,
+  TagsOutlined,
+  DollarOutlined,
+  AppstoreOutlined,
+} from '@ant-design/icons';
 import { RootState } from '../../store';
 import {
   setProducts,
@@ -11,11 +50,34 @@ import {
 } from '../../store/slices/productSlice';
 import { setCategories } from '../../store/slices/categorySlice';
 import { setMetalTypes } from '../../store/slices/metalTypeSlice';
+import { BarcodeScanner, RFIDScanner } from '../../components/hardware';
+import { SearchInput, Pagination as CustomPagination } from '../../components/ui';
+import { useDebounce } from '../../hooks';
 
-/**
- * Product List Page
- * Main product listing with search, filters, and actions
- */
+const { Option } = Select;
+const { Panel } = Collapse;
+
+interface Product {
+  id: number;
+  product_code: string;
+  product_name: string;
+  category?: { id: number; category_name: string };
+  metalType?: { id: number; metal_name: string };
+  gross_weight: number;
+  net_weight: number;
+  purity: number;
+  unit_price: number;
+  mrp?: number;
+  current_stock: number;
+  min_stock_level: number;
+  status: 'in_stock' | 'sold' | 'reserved' | 'in_repair' | 'with_karigar';
+  barcode?: string;
+  rfid_tag?: string;
+  images?: string[];
+  tags?: string[];
+  is_active: boolean;
+}
+
 const ProductList: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -27,11 +89,34 @@ const ProductList: React.FC = () => {
   const { metalTypes } = useSelector((state: RootState) => state.metalType);
   const { user } = useSelector((state: RootState) => state.auth);
 
+  // Filter states
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<number | ''>('');
-  const [selectedMetal, setSelectedMetal] = useState<number | ''>('');
-  const [selectedStatus, setSelectedStatus] = useState<string>('');
-  const [showFilters, setShowFilters] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<number | undefined>();
+  const [selectedMetal, setSelectedMetal] = useState<number | undefined>();
+  const [selectedStatus, setSelectedStatus] = useState<string | undefined>();
+  const [minPrice, setMinPrice] = useState<number | undefined>();
+  const [maxPrice, setMaxPrice] = useState<number | undefined>();
+  const [minWeight, setMinWeight] = useState<number | undefined>();
+  const [maxWeight, setMaxWeight] = useState<number | undefined>();
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [showLowStock, setShowLowStock] = useState(false);
+  const [showOutOfStock, setShowOutOfStock] = useState(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+
+  // Hardware integration states
+  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
+  const [showRFIDScanner, setShowRFIDScanner] = useState(false);
+
+  // Statistics
+  const [stats, setStats] = useState({
+    total: 0,
+    lowStock: 0,
+    outOfStock: 0,
+    totalValue: 0,
+  });
+
+  // Debounced search
+  const debouncedSearch = useDebounce(searchTerm, 500);
 
   // Load products on mount and when filters/pagination change
   useEffect(() => {
@@ -41,36 +126,47 @@ const ProductList: React.FC = () => {
   // Load categories and metal types on mount
   useEffect(() => {
     loadCategoriesAndMetalTypes();
+    loadStatistics();
   }, []);
+
+  // Apply search filter when debounced search changes
+  useEffect(() => {
+    if (debouncedSearch !== filters.search) {
+      applyFilters();
+    }
+  }, [debouncedSearch]);
 
   const loadProducts = async () => {
     try {
       dispatch(setLoading(true));
-      const response = await window.electronAPI.product.getAll(
-        filters,
-        { page: pagination.page, limit: pagination.limit }
-      );
+      const response = await window.api.products.getAll(filters, {
+        page: pagination.page,
+        limit: pagination.limit,
+      });
 
       if (response.success) {
         dispatch(setProducts(response.data));
       } else {
         dispatch(setError(response.message));
+        message.error(response.message);
       }
     } catch (err: any) {
       dispatch(setError(err.message || 'Failed to load products'));
+      message.error(err.message || 'Failed to load products');
     }
   };
 
   const loadCategoriesAndMetalTypes = async () => {
     try {
-      // Load categories
-      const catResponse = await window.electronAPI.category.getAll({ is_active: true });
+      const [catResponse, metalResponse] = await Promise.all([
+        window.api.categories.getAll({ is_active: true }),
+        window.api.metalTypes.getAll({ is_active: true }),
+      ]);
+
       if (catResponse.success) {
         dispatch(setCategories(catResponse.data));
       }
 
-      // Load metal types
-      const metalResponse = await window.electronAPI.metalType.getAll({ is_active: true });
       if (metalResponse.success) {
         dispatch(setMetalTypes(metalResponse.data));
       }
@@ -79,11 +175,37 @@ const ProductList: React.FC = () => {
     }
   };
 
-  const handleSearch = () => {
+  const loadStatistics = async () => {
+    try {
+      const [totalRes, lowStockRes, outOfStockRes] = await Promise.all([
+        window.api.products.getAll({ is_active: true }),
+        window.api.products.getLowStock(),
+        window.api.products.getOutOfStock(),
+      ]);
+
+      if (totalRes.success && lowStockRes.success && outOfStockRes.success) {
+        const totalValue = totalRes.data.products.reduce(
+          (sum: number, p: any) => sum + p.unit_price * p.current_stock,
+          0
+        );
+
+        setStats({
+          total: totalRes.data.total,
+          lowStock: lowStockRes.data.length,
+          outOfStock: outOfStockRes.data.length,
+          totalValue,
+        });
+      }
+    } catch (err) {
+      console.error('Failed to load statistics:', err);
+    }
+  };
+
+  const applyFilters = () => {
     const newFilters: any = {};
 
-    if (searchTerm) {
-      newFilters.search = searchTerm;
+    if (debouncedSearch) {
+      newFilters.search = debouncedSearch;
     }
 
     if (selectedCategory) {
@@ -98,294 +220,560 @@ const ProductList: React.FC = () => {
       newFilters.status = selectedStatus;
     }
 
+    if (minPrice !== undefined) {
+      newFilters.min_price = minPrice;
+    }
+
+    if (maxPrice !== undefined) {
+      newFilters.max_price = maxPrice;
+    }
+
+    if (minWeight !== undefined) {
+      newFilters.min_weight = minWeight;
+    }
+
+    if (maxWeight !== undefined) {
+      newFilters.max_weight = maxWeight;
+    }
+
+    if (selectedTags.length > 0) {
+      newFilters.tags = selectedTags;
+    }
+
+    if (showLowStock) {
+      newFilters.low_stock = true;
+    }
+
+    if (showOutOfStock) {
+      newFilters.out_of_stock = true;
+    }
+
     dispatch(setFilters(newFilters));
+    dispatch(setPagination({ page: 1, limit: pagination.limit }));
   };
 
   const handleClearFilters = () => {
     setSearchTerm('');
-    setSelectedCategory('');
-    setSelectedMetal('');
-    setSelectedStatus('');
+    setSelectedCategory(undefined);
+    setSelectedMetal(undefined);
+    setSelectedStatus(undefined);
+    setMinPrice(undefined);
+    setMaxPrice(undefined);
+    setMinWeight(undefined);
+    setMaxWeight(undefined);
+    setSelectedTags([]);
+    setShowLowStock(false);
+    setShowOutOfStock(false);
     dispatch(setFilters({}));
+    dispatch(setPagination({ page: 1, limit: pagination.limit }));
   };
 
-  const handlePageChange = (newPage: number) => {
-    dispatch(setPagination({ page: newPage, limit: pagination.limit }));
-  };
+  const handleBarcodeScanned = useCallback(async (barcode: string) => {
+    try {
+      const response = await window.api.products.searchByBarcode(barcode);
+      if (response.success && response.data) {
+        message.success(`Found: ${response.data.product_name}`);
+        navigate(`/products/${response.data.id}`);
+      } else {
+        message.warning('Product not found with this barcode');
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Failed to search product');
+    }
+  }, [navigate]);
+
+  const handleRFIDRead = useCallback(async (rfidTag: string) => {
+    try {
+      const response = await window.api.products.searchByRFID(rfidTag);
+      if (response.success && response.data) {
+        message.success(`Found: ${response.data.product_name}`);
+        navigate(`/products/${response.data.id}`);
+      } else {
+        message.warning('Product not found with this RFID tag');
+      }
+    } catch (err: any) {
+      message.error(err.message || 'Failed to search product');
+    }
+  }, [navigate]);
 
   const handleDelete = async (productId: number) => {
     if (!user) return;
 
-    if (!confirm('Are you sure you want to delete this product?')) {
-      return;
-    }
-
-    try {
-      const response = await window.electronAPI.product.delete(productId, user.id);
-      if (response.success) {
-        loadProducts();
-      } else {
-        alert(response.message);
-      }
-    } catch (err: any) {
-      alert(err.message || 'Failed to delete product');
-    }
+    Modal.confirm({
+      title: 'Delete Product',
+      content: 'Are you sure you want to delete this product?',
+      okText: 'Delete',
+      okType: 'danger',
+      onOk: async () => {
+        try {
+          const response = await window.api.products.delete(productId, user.id);
+          if (response.success) {
+            message.success('Product deleted successfully');
+            loadProducts();
+            loadStatistics();
+          } else {
+            message.error(response.message);
+          }
+        } catch (err: any) {
+          message.error(err.message || 'Failed to delete product');
+        }
+      },
+    });
   };
 
-  const getStockBadgeColor = (product: any) => {
+  const handleTableChange = (paginationConfig: TablePaginationConfig) => {
+    dispatch(
+      setPagination({
+        page: paginationConfig.current || 1,
+        limit: paginationConfig.pageSize || 10,
+      })
+    );
+  };
+
+  const getStockStatus = (product: Product) => {
     if (product.current_stock <= 0) {
-      return 'bg-red-100 text-red-800';
+      return { status: 'error', text: 'Out of Stock' };
     }
     if (product.current_stock <= product.min_stock_level) {
-      return 'bg-yellow-100 text-yellow-800';
+      return { status: 'warning', text: 'Low Stock' };
     }
-    return 'bg-green-100 text-green-800';
+    return { status: 'success', text: 'In Stock' };
   };
 
-  const getStatusBadgeColor = (status: string) => {
-    const colors: { [key: string]: string } = {
-      in_stock: 'bg-green-100 text-green-800',
-      sold: 'bg-gray-100 text-gray-800',
-      reserved: 'bg-blue-100 text-blue-800',
-      in_repair: 'bg-orange-100 text-orange-800',
-      with_karigar: 'bg-purple-100 text-purple-800',
-    };
-    return colors[status] || 'bg-gray-100 text-gray-800';
-  };
+  const columns: ColumnsType<Product> = [
+    {
+      title: 'Image',
+      key: 'image',
+      width: 80,
+      render: (_: any, record: Product) => {
+        const imageUrl = record.images && record.images.length > 0 ? record.images[0] : undefined;
+        return imageUrl ? (
+          <Image
+            src={imageUrl}
+            alt={record.product_name}
+            width={50}
+            height={50}
+            style={{ objectFit: 'cover', borderRadius: '4px' }}
+            preview={{ mask: <EyeOutlined /> }}
+          />
+        ) : (
+          <div
+            style={{
+              width: 50,
+              height: 50,
+              background: '#f0f0f0',
+              borderRadius: '4px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <AppstoreOutlined style={{ fontSize: 20, color: '#bfbfbf' }} />
+          </div>
+        );
+      },
+    },
+    {
+      title: 'Product Code',
+      dataIndex: 'product_code',
+      key: 'product_code',
+      sorter: true,
+      render: (text: string, record: Product) => (
+        <Button type="link" onClick={() => navigate(`/products/${record.id}`)}>
+          {text}
+        </Button>
+      ),
+    },
+    {
+      title: 'Product Name',
+      dataIndex: 'product_name',
+      key: 'product_name',
+      sorter: true,
+    },
+    {
+      title: 'Category',
+      key: 'category',
+      render: (_: any, record: Product) => record.category?.category_name || '-',
+    },
+    {
+      title: 'Metal',
+      key: 'metal',
+      render: (_: any, record: Product) => record.metalType?.metal_name || '-',
+    },
+    {
+      title: 'Weight (g)',
+      dataIndex: 'gross_weight',
+      key: 'weight',
+      align: 'right',
+      sorter: true,
+      render: (weight: number) => weight.toFixed(3),
+    },
+    {
+      title: 'Price',
+      dataIndex: 'unit_price',
+      key: 'price',
+      align: 'right',
+      sorter: true,
+      render: (price: number) => `₹${price.toLocaleString('en-IN')}`,
+    },
+    {
+      title: 'Stock',
+      key: 'stock',
+      align: 'center',
+      render: (_: any, record: Product) => {
+        const stockStatus = getStockStatus(record);
+        return (
+          <Tooltip title={stockStatus.text}>
+            <Badge status={stockStatus.status as any} text={record.current_stock.toString()} />
+          </Tooltip>
+        );
+      },
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status: string) => {
+        const colorMap: { [key: string]: string } = {
+          in_stock: 'success',
+          sold: 'default',
+          reserved: 'blue',
+          in_repair: 'orange',
+          with_karigar: 'purple',
+        };
+        return <Tag color={colorMap[status]}>{status.replace('_', ' ').toUpperCase()}</Tag>;
+      },
+    },
+    {
+      title: 'Tags',
+      key: 'tags',
+      render: (_: any, record: Product) =>
+        record.tags && record.tags.length > 0 ? (
+          <Space size={4} wrap>
+            {record.tags.slice(0, 2).map((tag) => (
+              <Tag key={tag} icon={<TagsOutlined />}>
+                {tag}
+              </Tag>
+            ))}
+            {record.tags.length > 2 && <Tag>+{record.tags.length - 2}</Tag>}
+          </Space>
+        ) : (
+          '-'
+        ),
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      fixed: 'right',
+      width: 150,
+      render: (_: any, record: Product) => (
+        <Space size="small">
+          <Tooltip title="View Details">
+            <Button
+              type="text"
+              icon={<EyeOutlined />}
+              onClick={() => navigate(`/products/${record.id}`)}
+            />
+          </Tooltip>
+          <Tooltip title="Edit">
+            <Button
+              type="text"
+              icon={<EditOutlined />}
+              onClick={() => navigate(`/products/${record.id}/edit`)}
+            />
+          </Tooltip>
+          <Tooltip title="Delete">
+            <Button
+              type="text"
+              danger
+              icon={<DeleteOutlined />}
+              onClick={() => handleDelete(record.id)}
+            />
+          </Tooltip>
+        </Space>
+      ),
+    },
+  ];
 
   return (
-    <div className="p-6">
+    <div style={{ padding: 24 }}>
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Products</h1>
-          <p className="text-gray-600 mt-1">
-            Manage your jewellery inventory
-          </p>
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h1 style={{ fontSize: 24, fontWeight: 600, margin: 0 }}>Products</h1>
+            <p style={{ color: '#8c8c8c', marginTop: 4 }}>Manage your jewelry inventory</p>
+          </div>
+          <Space>
+            <Dropdown
+              menu={{
+                items: [
+                  {
+                    key: 'barcode',
+                    label: 'Scan Barcode',
+                    icon: <BarcodeOutlined />,
+                    onClick: () => setShowBarcodeScanner(true),
+                  },
+                  {
+                    key: 'rfid',
+                    label: 'Read RFID',
+                    icon: <WifiOutlined />,
+                    onClick: () => setShowRFIDScanner(true),
+                  },
+                ],
+              }}
+            >
+              <Button>Quick Search</Button>
+            </Dropdown>
+            <Button icon={<ExportOutlined />}>Export</Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/products/new')}>
+              Add Product
+            </Button>
+          </Space>
         </div>
-        <button
-          onClick={() => navigate('/products/new')}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
-        >
-          <span>+</span>
-          Add Product
-        </button>
       </div>
 
-      {/* Search and Filters */}
-      <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
-        <div className="flex gap-4 items-end">
-          {/* Search */}
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Search
-            </label>
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-              placeholder="Search by product code, name, barcode..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+      {/* Statistics */}
+      <Row gutter={16} style={{ marginBottom: 24 }}>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="Total Products"
+              value={stats.total}
+              prefix={<StockOutlined />}
+              valueStyle={{ color: '#1890ff' }}
             />
-          </div>
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="Low Stock"
+              value={stats.lowStock}
+              prefix={<StockOutlined />}
+              valueStyle={{ color: '#faad14' }}
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="Out of Stock"
+              value={stats.outOfStock}
+              prefix={<StockOutlined />}
+              valueStyle={{ color: '#ff4d4f' }}
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="Total Value"
+              value={stats.totalValue}
+              prefix={<DollarOutlined />}
+              precision={2}
+              valueStyle={{ color: '#52c41a' }}
+            />
+          </Card>
+        </Col>
+      </Row>
 
-          {/* Category Filter */}
-          <div className="w-48">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Category
-            </label>
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value ? Number(e.target.value) : '')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">All Categories</option>
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.category_name}
-                </option>
-              ))}
-            </select>
-          </div>
+      {/* Filters */}
+      <Card style={{ marginBottom: 24 }}>
+        <Space direction="vertical" style={{ width: '100%' }} size="middle">
+          <Row gutter={16}>
+            <Col span={8}>
+              <SearchInput
+                placeholder="Search by product code, name, barcode..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onSearch={applyFilters}
+                allowClear
+              />
+            </Col>
+            <Col span={4}>
+              <Select
+                placeholder="Category"
+                value={selectedCategory}
+                onChange={setSelectedCategory}
+                style={{ width: '100%' }}
+                allowClear
+              >
+                {categories.map((cat) => (
+                  <Option key={cat.id} value={cat.id}>
+                    {cat.category_name}
+                  </Option>
+                ))}
+              </Select>
+            </Col>
+            <Col span={4}>
+              <Select
+                placeholder="Metal Type"
+                value={selectedMetal}
+                onChange={setSelectedMetal}
+                style={{ width: '100%' }}
+                allowClear
+              >
+                {metalTypes.map((metal) => (
+                  <Option key={metal.id} value={metal.id}>
+                    {metal.metal_name}
+                  </Option>
+                ))}
+              </Select>
+            </Col>
+            <Col span={4}>
+              <Select
+                placeholder="Status"
+                value={selectedStatus}
+                onChange={setSelectedStatus}
+                style={{ width: '100%' }}
+                allowClear
+              >
+                <Option value="in_stock">In Stock</Option>
+                <Option value="sold">Sold</Option>
+                <Option value="reserved">Reserved</Option>
+                <Option value="in_repair">In Repair</Option>
+                <Option value="with_karigar">With Karigar</Option>
+              </Select>
+            </Col>
+            <Col span={4}>
+              <Space>
+                <Button type="primary" icon={<SearchOutlined />} onClick={applyFilters}>
+                  Search
+                </Button>
+                <Button icon={<ReloadOutlined />} onClick={handleClearFilters}>
+                  Reset
+                </Button>
+              </Space>
+            </Col>
+          </Row>
 
-          {/* Metal Type Filter */}
-          <div className="w-48">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Metal Type
-            </label>
-            <select
-              value={selectedMetal}
-              onChange={(e) => setSelectedMetal(e.target.value ? Number(e.target.value) : '')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">All Metals</option>
-              {metalTypes.map((metal) => (
-                <option key={metal.id} value={metal.id}>
-                  {metal.metal_name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex gap-2">
-            <button
-              onClick={handleSearch}
-              className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700"
-            >
-              Search
-            </button>
-            <button
-              onClick={handleClearFilters}
-              className="bg-gray-200 text-gray-700 px-6 py-2 rounded-md hover:bg-gray-300"
-            >
-              Clear
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Error Message */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
-          {error}
-        </div>
-      )}
+          {/* Advanced Filters */}
+          <Collapse
+            ghost
+            activeKey={showAdvancedFilters ? ['1'] : []}
+            onChange={() => setShowAdvancedFilters(!showAdvancedFilters)}
+          >
+            <Panel header="Advanced Filters" key="1" extra={<FilterOutlined />}>
+              <Row gutter={[16, 16]}>
+                <Col span={6}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: 8 }}>Price Range</label>
+                    <Space>
+                      <InputNumber
+                        placeholder="Min"
+                        value={minPrice}
+                        onChange={(val) => setMinPrice(val || undefined)}
+                        prefix="₹"
+                        style={{ width: '100%' }}
+                      />
+                      <span>-</span>
+                      <InputNumber
+                        placeholder="Max"
+                        value={maxPrice}
+                        onChange={(val) => setMaxPrice(val || undefined)}
+                        prefix="₹"
+                        style={{ width: '100%' }}
+                      />
+                    </Space>
+                  </div>
+                </Col>
+                <Col span={6}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: 8 }}>Weight Range (g)</label>
+                    <Space>
+                      <InputNumber
+                        placeholder="Min"
+                        value={minWeight}
+                        onChange={(val) => setMinWeight(val || undefined)}
+                        style={{ width: '100%' }}
+                      />
+                      <span>-</span>
+                      <InputNumber
+                        placeholder="Max"
+                        value={maxWeight}
+                        onChange={(val) => setMaxWeight(val || undefined)}
+                        style={{ width: '100%' }}
+                      />
+                    </Space>
+                  </div>
+                </Col>
+                <Col span={6}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: 8 }}>Tags</label>
+                    <Select
+                      mode="tags"
+                      placeholder="Select or enter tags"
+                      value={selectedTags}
+                      onChange={setSelectedTags}
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                </Col>
+                <Col span={6}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: 8 }}>Stock Filters</label>
+                    <Space direction="vertical">
+                      <Space>
+                        <Switch checked={showLowStock} onChange={setShowLowStock} />
+                        <span>Low Stock Only</span>
+                      </Space>
+                      <Space>
+                        <Switch checked={showOutOfStock} onChange={setShowOutOfStock} />
+                        <span>Out of Stock Only</span>
+                      </Space>
+                    </Space>
+                  </div>
+                </Col>
+              </Row>
+            </Panel>
+          </Collapse>
+        </Space>
+      </Card>
 
       {/* Products Table */}
-      <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-        {loading ? (
-          <div className="p-8 text-center text-gray-500">
-            Loading products...
-          </div>
-        ) : products.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">
-            No products found. Create your first product!
-          </div>
-        ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Product Code
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Product Name
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Category
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Metal
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Weight
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Price
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Stock
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {products.map((product) => (
-                    <tr
-                      key={product.id}
-                      className="hover:bg-gray-50 cursor-pointer"
-                      onClick={() => navigate(`/products/${product.id}`)}
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {product.product_code}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {product.product_name}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {product.category?.category_name || '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {product.metalType?.metal_name || '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {product.gross_weight}g
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        ₹{product.unit_price.toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 text-xs rounded-full ${getStockBadgeColor(product)}`}>
-                          {product.current_stock}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 text-xs rounded-full ${getStatusBadgeColor(product.status)}`}>
-                          {product.status.replace('_', ' ')}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/products/${product.id}/edit`);
-                          }}
-                          className="text-blue-600 hover:text-blue-900 mr-3"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete(product.id);
-                          }}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+      <Card>
+        <Table
+          columns={columns}
+          dataSource={products}
+          rowKey="id"
+          loading={loading}
+          pagination={{
+            current: pagination.page,
+            pageSize: pagination.limit,
+            total: pagination.total,
+            showSizeChanger: true,
+            showTotal: (total) => `Total ${total} products`,
+          }}
+          onChange={handleTableChange}
+          scroll={{ x: 1500 }}
+          locale={{
+            emptyText: <Empty description="No products found" />,
+          }}
+        />
+      </Card>
 
-            {/* Pagination */}
-            <div className="bg-gray-50 px-6 py-3 flex items-center justify-between border-t border-gray-200">
-              <div className="text-sm text-gray-700">
-                Showing {(pagination.page - 1) * pagination.limit + 1} to{' '}
-                {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
-                {pagination.total} products
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handlePageChange(pagination.page - 1)}
-                  disabled={pagination.page === 1}
-                  className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
-                >
-                  Previous
-                </button>
-                <button
-                  onClick={() => handlePageChange(pagination.page + 1)}
-                  disabled={pagination.page >= pagination.totalPages}
-                  className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          </>
-        )}
-      </div>
+      {/* Barcode Scanner Modal */}
+      <Modal
+        title="Scan Barcode"
+        open={showBarcodeScanner}
+        onCancel={() => setShowBarcodeScanner(false)}
+        footer={null}
+        width={600}
+      >
+        <BarcodeScanner onScan={handleBarcodeScanned} enableContinuous={false} />
+      </Modal>
+
+      {/* RFID Scanner Modal */}
+      <Modal
+        title="Read RFID Tag"
+        open={showRFIDScanner}
+        onCancel={() => setShowRFIDScanner(false)}
+        footer={null}
+        width={600}
+      >
+        <RFIDScanner onRead={handleRFIDRead} enableContinuous={false} />
+      </Modal>
     </div>
   );
 };

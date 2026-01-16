@@ -91,7 +91,12 @@
       "Bash(./node_modules/electron/dist/electron.exe simple-test.js)",
       "Bash(./node_modules/electron/dist/electron.exe .)",
       "Bash(npm cache clean:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(claude --version:*)",
+      "Bash(claude)",
+      "Bash(claude --accept-terms:*)",
+      "Bash(tree:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

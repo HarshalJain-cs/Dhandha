@@ -13,6 +13,10 @@ import {
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import type { ColumnsType } from 'antd/es/table';
+import SalesChart from '../components/charts/SalesChart';
+import ProductDistributionChart from '../components/charts/ProductDistributionChart';
+import TopProductsChart from '../components/charts/TopProductsChart';
+import PaymentSummaryChart from '../components/charts/PaymentSummaryChart';
 
 interface SyncStatusData {
   configured: boolean;
@@ -62,6 +66,13 @@ const Dashboard: React.FC = () => {
   });
   const [lowStockItems, setLowStockItems] = useState<LowStockProduct[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Chart data states
+  const [salesTrendData, setSalesTrendData] = useState([]);
+  const [productDistData, setProductDistData] = useState([]);
+  const [topProductsData, setTopProductsData] = useState([]);
+  const [paymentSummaryData, setPaymentSummaryData] = useState([]);
+  const [chartsLoading, setChartsLoading] = useState(true);
 
   /**
    * Fetch sync status
@@ -143,11 +154,57 @@ const Dashboard: React.FC = () => {
   };
 
   /**
+   * Load chart data
+   */
+  const loadChartData = async () => {
+    try {
+      setChartsLoading(true);
+
+      // Calculate date range (last 30 days)
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(endDate.getDate() - 30);
+
+      const startDateStr = startDate.toISOString().split('T')[0];
+      const endDateStr = endDate.toISOString().split('T')[0];
+
+      const [sales, products, top, payments] = await Promise.all([
+        window.electronAPI.dashboard.getSalesTrends(startDateStr, endDateStr, 'day'),
+        window.electronAPI.dashboard.getProductDistribution(),
+        window.electronAPI.dashboard.getTopProducts(5, startDateStr, endDateStr),
+        window.electronAPI.dashboard.getPaymentSummary(startDateStr, endDateStr),
+      ]);
+
+      if (sales.success && sales.data) {
+        setSalesTrendData(sales.data);
+      }
+
+      if (products.success && products.data) {
+        setProductDistData(products.data);
+      }
+
+      if (top.success && top.data) {
+        setTopProductsData(top.data);
+      }
+
+      if (payments.success && payments.data) {
+        setPaymentSummaryData(payments.data);
+      }
+
+    } catch (error) {
+      console.error('Failed to load chart data:', error);
+    } finally {
+      setChartsLoading(false);
+    }
+  }
+
+  /**
    * Load sync status and stats on mount
    */
   useEffect(() => {
     fetchSyncStatus();
     loadDashboardStats();
+    loadChartData();
 
     // Refresh status every 30 seconds
     const interval = setInterval(fetchSyncStatus, 30000);
@@ -274,6 +331,32 @@ const Dashboard: React.FC = () => {
                 {stats.outOfStockProducts} out of stock
               </div>
             )}
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Charts */}
+      <Row gutter={[16, 16]} className="mb-6">
+        <Col xs={24} lg={12}>
+          <Card title="Last 30 Days Sales Trend">
+            <SalesChart data={salesTrendData} loading={chartsLoading} />
+          </Card>
+        </Col>
+        <Col xs={24} lg={12}>
+          <Card title="Product Distribution by Category">
+             <ProductDistributionChart data={productDistData} loading={chartsLoading} />
+          </Card>
+        </Col>
+      </Row>
+      <Row gutter={[16, 16]} className="mb-6">
+        <Col xs={24} lg={12}>
+          <Card title="Top 5 Selling Products (by Quantity)">
+            <TopProductsChart data={topProductsData} loading={chartsLoading}/>
+          </Card>
+        </Col>
+        <Col xs={24} lg={12}>
+          <Card title="Payment Mode Summary">
+             <PaymentSummaryChart data={paymentSummaryData} loading={chartsLoading} />
           </Card>
         </Col>
       </Row>

@@ -7,7 +7,9 @@ import { setupMetalTypeHandlers } from './metalTypeHandlers';
 import { setupStoneHandlers } from './stoneHandlers';
 import { setupCustomerHandlers } from './customerHandlers';
 import { setupInvoiceHandlers } from './invoiceHandlers';
+import { setupDashboardHandlers } from './dashboardHandlers';
 import { setupKarigarHandlers } from './karigarHandlers';
+import { setupWorkOrderHandlers } from './workOrderHandlers';
 import { setupGoldLoanHandlers } from './goldLoanHandlers';
 import { setupVendorHandlers } from './vendorHandlers';
 import { setupPurchaseOrderHandlers } from './purchaseOrderHandlers';
@@ -20,7 +22,9 @@ import { setupNotificationHandlers } from './notificationHandlers';
 import { setupImportExportHandlers } from './importExportHandlers';
 import { setupInvoiceTemplateHandlers } from './invoiceTemplateHandlers';
 import { setupPrinterHandlers } from './printerHandlers';
+import { setupHardwareHandlers } from './hardwareHandlers';
 import { setupUpdateHandlers } from './updateHandlers';
+import { setupReportsHandlers } from './reports-handlers'; // Import new reports handler
 
 /**
  * IPC Handlers Index
@@ -54,8 +58,12 @@ export const setupAllHandlers = (): void => {
   // Setup billing/invoice handlers
   setupInvoiceHandlers();
 
+  // Setup dashboard statistics handlers
+  setupDashboardHandlers();
+
   // Setup karigar (craftsman) handlers
   setupKarigarHandlers();
+  setupWorkOrderHandlers();
 
   // Setup gold loan handlers
   setupGoldLoanHandlers();
@@ -91,8 +99,14 @@ export const setupAllHandlers = (): void => {
   // Setup printer handlers
   setupPrinterHandlers();
 
+  // Setup hardware handlers (barcode, RFID, scale)
+  setupHardwareHandlers();
+
   // Setup update handlers
   setupUpdateHandlers();
+
+  // Setup reports handlers
+  setupReportsHandlers();
 
   console.log('✓ All IPC handlers registered successfully');
 };

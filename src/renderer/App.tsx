@@ -14,6 +14,9 @@ import Categories from './pages/Categories';
 import Stones from './pages/Stones';
 import MetalRates from './pages/MetalRates';
 import Customers from './pages/Customers';
+import CustomerList from './pages/Customers/CustomerList';
+import CustomerDetail from './pages/Customers/CustomerDetail';
+import CustomerForm from './pages/Customers/CustomerForm';
 import InvoiceList from './pages/InvoiceList';
 import InvoiceCreate from './pages/InvoiceCreate';
 import InvoiceDetail from './pages/InvoiceDetail';
@@ -35,6 +38,7 @@ import SalesReturnDetail from './pages/SalesReturnDetail';
 import AuditLog from './pages/AuditLog';
 import Settings from './pages/Settings';
 import UpdateNotification from './components/UpdateNotification';
+import Reports from './pages/Reports'; // Import the new Reports component
 
 /**
  * Main Application Component
@@ -252,7 +256,37 @@ const App: React.FC = () => {
           element={
             <PrivateRoute>
               <MainLayout>
-                <Customers />
+                <CustomerList />
+              </MainLayout>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/customers/new"
+          element={
+            <PrivateRoute>
+              <MainLayout>
+                <CustomerForm />
+              </MainLayout>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/customers/edit/:id"
+          element={
+            <PrivateRoute>
+              <MainLayout>
+                <CustomerForm />
+              </MainLayout>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/customers/:id"
+          element={
+            <PrivateRoute>
+              <MainLayout>
+                <CustomerDetail />
               </MainLayout>
             </PrivateRoute>
           }
@@ -459,6 +493,18 @@ const App: React.FC = () => {
             <PrivateRoute>
               <MainLayout>
                 <AuditLog />
+              </MainLayout>
+            </PrivateRoute>
+          }
+        />
+
+        {/* Reports Route */}
+        <Route
+          path="/reports"
+          element={
+            <PrivateRoute>
+              <MainLayout>
+                <Reports />
               </MainLayout>
             </PrivateRoute>
           }

@@ -11,6 +11,7 @@ export interface CategoryAttributes {
   parent_category_id: number | null;
   hsn_code: string | null;
   description: string | null;
+  images: string[] | null;
   default_making_charge_percentage: number;
   default_wastage_percentage: number;
   is_active: boolean;
@@ -30,6 +31,7 @@ export interface CategoryCreationAttributes
     | 'parent_category_id'
     | 'hsn_code'
     | 'description'
+    | 'images'
     | 'default_making_charge_percentage'
     | 'default_wastage_percentage'
     | 'is_active'
@@ -53,6 +55,7 @@ export class Category
   public parent_category_id!: number | null;
   public hsn_code!: string | null;
   public description!: string | null;
+  public images!: string[] | null;
   public default_making_charge_percentage!: number;
   public default_wastage_percentage!: number;
   public is_active!: boolean;
@@ -148,6 +151,11 @@ Category.init(
     description: {
       type: DataTypes.TEXT,
       allowNull: true,
+    },
+    images: {
+      type: DataTypes.ARRAY(DataTypes.TEXT),
+      allowNull: true,
+      defaultValue: null,
     },
     default_making_charge_percentage: {
       type: DataTypes.DECIMAL(5, 2),

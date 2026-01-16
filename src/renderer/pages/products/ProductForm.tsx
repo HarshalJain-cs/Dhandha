@@ -1,41 +1,75 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
+import { useSelector } from 'react-redux';
+import {
+  Form,
+  Input,
+  InputNumber,
+  Select,
+  Button,
+  Steps,
+  Card,
+  Space,
+  Row,
+  Col,
+  message,
+  Divider,
+  Tag,
+  Tooltip,
+  Modal,
+  Tabs,
+  Radio,
+  Alert,
+} from 'antd';
+import {
+  SaveOutlined,
+  CloseOutlined,
+  BarcodeOutlined,
+  WifiOutlined,
+  ScaleOutlined,
+  PictureOutlined,
+  TagsOutlined,
+  ArrowLeftOutlined,
+  ArrowRightOutlined,
+  CheckOutlined,
+} from '@ant-design/icons';
 import { RootState } from '../../store';
-import { setCurrentProduct, setLoading, setError } from '../../store/slices/productSlice';
+import { useForm } from '../../hooks';
+import { BarcodeScanner, RFIDScanner, WeighingScaleInput } from '../../components/hardware';
+import { ImageUpload } from '../../components/ui';
 
-/**
- * Product Form - Multi-step wizard
- * For creating and editing products
- */
+const { Step } = Steps;
+const { Option } = Select;
+const { TextArea } = Input;
+const { TabPane } = Tabs;
 
-interface FormData {
+interface ProductFormData {
   // Basic Info
-  category_id: number | '';
-  metal_type_id: number | '';
+  category_id: number | null;
+  metal_type_id: number | null;
   product_name: string;
   description: string;
   design_number: string;
   size: string;
 
   // Weight Details
-  gross_weight: number | '';
-  net_weight: number | '';
-  stone_weight: number | '';
-  purity: number | '';
-  wastage_percentage: number | '';
+  gross_weight: number;
+  net_weight: number;
+  stone_weight: number;
+  purity: number;
+  wastage_percentage: number;
 
   // Pricing
-  unit_price: number | '';
-  mrp: number | '';
+  unit_price: number;
+  mrp: number;
   making_charge_type: 'per_gram' | 'percentage' | 'fixed' | 'slab';
-  making_charge: number | '';
+  making_charge: number;
 
   // Stock & Location
-  quantity: number | '';
-  current_stock: number | '';
-  min_stock_level: number | '';
-  reorder_level: number | '';
+  quantity: number;
+  current_stock: number;
+  min_stock_level: number;
+  reorder_level: number;
   location: string;
   rack_number: string;
   shelf_number: string;
@@ -48,7 +82,8 @@ interface FormData {
   hallmark_number: string;
   hallmark_center: string;
 
-  // Additional
+  // Images and Additional
+  images: string[];
   tags: string[];
   notes: string;
 }
@@ -56,187 +91,248 @@ interface FormData {
 const ProductForm: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const dispatch = useDispatch();
+  const isEditMode = !!id;
 
-  const { currentProduct, loading, error } = useSelector((state: RootState) => state.product);
   const { categories } = useSelector((state: RootState) => state.category);
   const { metalTypes } = useSelector((state: RootState) => state.metalType);
-  const { stones } = useSelector((state: RootState) => state.stone);
   const { user } = useSelector((state: RootState) => state.auth);
 
-  const [currentStep, setCurrentStep] = useState(1);
-  const [formData, setFormData] = useState<FormData>({
-    category_id: '',
-    metal_type_id: '',
-    product_name: '',
-    description: '',
-    design_number: '',
-    size: '',
-    gross_weight: '',
-    net_weight: '',
-    stone_weight: 0,
-    purity: '',
-    wastage_percentage: 0,
-    unit_price: '',
-    mrp: '',
-    making_charge_type: 'per_gram',
-    making_charge: 0,
-    quantity: 1,
-    current_stock: 0,
-    min_stock_level: 0,
-    reorder_level: 0,
-    location: '',
-    rack_number: '',
-    shelf_number: '',
-    status: 'in_stock',
-    barcode: '',
-    rfid_tag: '',
-    huid: '',
-    hallmark_number: '',
-    hallmark_center: '',
-    tags: [],
-    notes: '',
-  });
-
-  const [productStones, setProductStones] = useState<any[]>([]);
-  const [tagInput, setTagInput] = useState('');
+  const [currentStep, setCurrentStep] = useState(0);
+  const [loading, setLoading] = useState(false);
   const [generatedCode, setGeneratedCode] = useState('');
 
-  const steps = [
-    { number: 1, name: 'Basic Info', icon: '📝' },
-    { number: 2, name: 'Weight Details', icon: '⚖️' },
-    { number: 3, name: 'Pricing', icon: '💰' },
-    { number: 4, name: 'Stock & Location', icon: '📦' },
-    { number: 5, name: 'Identification', icon: '🏷️' },
-    { number: 6, name: 'Stones', icon: '💎' },
-    { number: 7, name: 'Review', icon: '✅' },
-  ];
+  // Hardware modals
+  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
+  const [showRFIDScanner, setShowRFIDScanner] = useState(false);
 
+  // Tag input
+  const [tagInput, setTagInput] = useState('');
+
+  // Validation schema
+  const validationSchema = {
+    category_id: (value: any) => (!value ? 'Category is required' : ''),
+    metal_type_id: (value: any) => (!value ? 'Metal type is required' : ''),
+    product_name: (value: string) => (!value?.trim() ? 'Product name is required' : ''),
+    gross_weight: (value: number) => (!value || value <= 0 ? 'Valid gross weight is required' : ''),
+    net_weight: (value: number) => (!value || value <= 0 ? 'Valid net weight is required' : ''),
+    purity: (value: number) => (!value || value <= 0 || value > 100 ? 'Purity must be between 0 and 100' : ''),
+    unit_price: (value: number) => (!value || value <= 0 ? 'Valid unit price is required' : ''),
+  };
+
+  const form = useForm<ProductFormData>({
+    initialValues: {
+      category_id: null,
+      metal_type_id: null,
+      product_name: '',
+      description: '',
+      design_number: '',
+      size: '',
+      gross_weight: 0,
+      net_weight: 0,
+      stone_weight: 0,
+      purity: 0,
+      wastage_percentage: 0,
+      unit_price: 0,
+      mrp: 0,
+      making_charge_type: 'per_gram',
+      making_charge: 0,
+      quantity: 1,
+      current_stock: 0,
+      min_stock_level: 0,
+      reorder_level: 0,
+      location: '',
+      rack_number: '',
+      shelf_number: '',
+      status: 'in_stock',
+      barcode: '',
+      rfid_tag: '',
+      huid: '',
+      hallmark_number: '',
+      hallmark_center: '',
+      images: [],
+      tags: [],
+      notes: '',
+    },
+    validationSchema,
+    onSubmit: handleSubmit,
+    enableAutoSave: true,
+    autoSaveKey: `product-form-${id || 'new'}`,
+  });
+
+  // Load product data for edit mode
   useEffect(() => {
-    loadData();
+    loadInitialData();
   }, [id]);
 
+  // Generate product code when category and metal type change
   useEffect(() => {
-    if (formData.category_id && formData.metal_type_id) {
+    if (form.values.category_id && form.values.metal_type_id && !isEditMode) {
       generateProductCode();
     }
-  }, [formData.category_id, formData.metal_type_id]);
+  }, [form.values.category_id, form.values.metal_type_id]);
 
-  const loadData = async () => {
+  // Calculate fine weight automatically
+  useEffect(() => {
+    if (form.values.net_weight && form.values.purity) {
+      // Fine weight calculation is handled by backend, but we can show a preview
+    }
+  }, [form.values.net_weight, form.values.purity]);
+
+  const loadInitialData = async () => {
+    if (!isEditMode) return;
+
     try {
-      // Load categories
-      const catResponse = await window.electronAPI.category.getAll({ is_active: true });
-      // Load metal types
-      const metalResponse = await window.electronAPI.metalType.getAll({ is_active: true });
-      // Load stones
-      const stoneResponse = await window.electronAPI.stone.getAll({ is_active: true });
+      setLoading(true);
+      const response = await window.api.products.getById(Number(id));
 
-      // If editing, load product
-      if (id) {
-        const productResponse = await window.electronAPI.product.getById(Number(id));
-        if (productResponse.success) {
-          const product = productResponse.data;
-          setFormData({
-            category_id: product.category_id,
-            metal_type_id: product.metal_type_id,
-            product_name: product.product_name,
-            description: product.description || '',
-            design_number: product.design_number || '',
-            size: product.size || '',
-            gross_weight: product.gross_weight,
-            net_weight: product.net_weight,
-            stone_weight: product.stone_weight,
-            purity: product.purity,
-            wastage_percentage: product.wastage_percentage,
-            unit_price: product.unit_price,
-            mrp: product.mrp || '',
-            making_charge_type: product.making_charge_type,
-            making_charge: product.making_charge,
-            quantity: product.quantity,
-            current_stock: product.current_stock,
-            min_stock_level: product.min_stock_level,
-            reorder_level: product.reorder_level,
-            location: product.location || '',
-            rack_number: product.rack_number || '',
-            shelf_number: product.shelf_number || '',
-            status: product.status,
-            barcode: product.barcode || '',
-            rfid_tag: product.rfid_tag || '',
-            huid: product.huid || '',
-            hallmark_number: product.hallmark_number || '',
-            hallmark_center: product.hallmark_center || '',
-            tags: product.tags || [],
-            notes: product.notes || '',
-          });
-          if (product.stones) {
-            setProductStones(product.stones);
-          }
-        }
+      if (response.success && response.data) {
+        const product = response.data;
+        form.setValues({
+          category_id: product.category_id,
+          metal_type_id: product.metal_type_id,
+          product_name: product.product_name,
+          description: product.description || '',
+          design_number: product.design_number || '',
+          size: product.size || '',
+          gross_weight: product.gross_weight,
+          net_weight: product.net_weight,
+          stone_weight: product.stone_weight || 0,
+          purity: product.purity,
+          wastage_percentage: product.wastage_percentage || 0,
+          unit_price: product.unit_price,
+          mrp: product.mrp || 0,
+          making_charge_type: product.making_charge_type,
+          making_charge: product.making_charge || 0,
+          quantity: product.quantity || 1,
+          current_stock: product.current_stock,
+          min_stock_level: product.min_stock_level || 0,
+          reorder_level: product.reorder_level || 0,
+          location: product.location || '',
+          rack_number: product.rack_number || '',
+          shelf_number: product.shelf_number || '',
+          status: product.status,
+          barcode: product.barcode || '',
+          rfid_tag: product.rfid_tag || '',
+          huid: product.huid || '',
+          hallmark_number: product.hallmark_number || '',
+          hallmark_center: product.hallmark_center || '',
+          images: product.images || [],
+          tags: product.tags || [],
+          notes: product.notes || '',
+        });
+      } else {
+        message.error(response.message || 'Failed to load product');
+        navigate('/products');
       }
-    } catch (err) {
-      console.error('Failed to load data:', err);
+    } catch (error) {
+      console.error('Failed to load product:', error);
+      message.error('Failed to load product');
+      navigate('/products');
+    } finally {
+      setLoading(false);
     }
   };
 
   const generateProductCode = async () => {
-    if (!formData.category_id || !formData.metal_type_id) return;
-
     try {
-      const response = await window.electronAPI.product.generateCode(
-        Number(formData.category_id),
-        Number(formData.metal_type_id)
+      const response = await window.api.products.generateCode(
+        Number(form.values.category_id),
+        Number(form.values.metal_type_id)
       );
+
       if (response.success) {
         setGeneratedCode(response.data.product_code);
       }
-    } catch (err) {
-      console.error('Failed to generate code:', err);
+    } catch (error) {
+      console.error('Failed to generate product code:', error);
     }
   };
 
-  const handleInputChange = (field: keyof FormData, value: any) => {
-    setFormData({ ...formData, [field]: value });
-  };
+  async function handleSubmit(values: ProductFormData) {
+    if (!user) {
+      message.error('User not authenticated');
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const productData = {
+        ...values,
+        created_by: user.id,
+      };
+
+      let response;
+      if (isEditMode) {
+        response = await window.api.products.update(Number(id), productData, user.id);
+      } else {
+        response = await window.api.products.create(productData);
+      }
+
+      if (response.success) {
+        message.success(isEditMode ? 'Product updated successfully' : 'Product created successfully');
+        form.clearDraft();
+        navigate('/products');
+      } else {
+        message.error(response.message);
+      }
+    } catch (error: any) {
+      console.error('Failed to save product:', error);
+      message.error(error.message || 'Failed to save product');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const handleBarcodeScanned = useCallback((barcode: string) => {
+    form.setFieldValue('barcode', barcode);
+    setShowBarcodeScanner(false);
+    message.success('Barcode scanned successfully');
+  }, [form]);
+
+  const handleRFIDRead = useCallback((rfidTag: string) => {
+    form.setFieldValue('rfid_tag', rfidTag);
+    setShowRFIDScanner(false);
+    message.success('RFID tag read successfully');
+  }, [form]);
+
+  const handleWeightRead = useCallback((weight: number) => {
+    if (currentStep === 1) {
+      // Assuming step 1 is weight details
+      form.setFieldValue('gross_weight', weight);
+    }
+  }, [form, currentStep]);
 
   const addTag = () => {
-    if (tagInput.trim() && !formData.tags.includes(tagInput.trim())) {
-      setFormData({
-        ...formData,
-        tags: [...formData.tags, tagInput.trim()],
-      });
+    const trimmedTag = tagInput.trim();
+    if (trimmedTag && !form.values.tags.includes(trimmedTag)) {
+      form.setFieldValue('tags', [...form.values.tags, trimmedTag]);
       setTagInput('');
     }
   };
 
-  const removeTag = (tag: string) => {
-    setFormData({
-      ...formData,
-      tags: formData.tags.filter((t) => t !== tag),
-    });
+  const removeTag = (tagToRemove: string) => {
+    form.setFieldValue('tags', form.values.tags.filter(tag => tag !== tagToRemove));
   };
 
-  const validateStep = (step: number): boolean => {
-    switch (step) {
-      case 1:
-        return !!(
-          formData.category_id &&
-          formData.metal_type_id &&
-          formData.product_name.trim()
-        );
-      case 2:
-        return !!(formData.gross_weight && formData.net_weight && formData.purity);
-      case 3:
-        return !!formData.unit_price;
+  const validateCurrentStep = () => {
+    switch (currentStep) {
+      case 0: // Basic Info
+        return !!(form.values.category_id && form.values.metal_type_id && form.values.product_name.trim());
+      case 1: // Weight Details
+        return !!(form.values.gross_weight > 0 && form.values.net_weight > 0 && form.values.purity > 0);
+      case 2: // Pricing
+        return form.values.unit_price > 0;
       default:
         return true;
     }
   };
 
   const nextStep = () => {
-    if (validateStep(currentStep)) {
+    if (validateCurrentStep()) {
       setCurrentStep(currentStep + 1);
     } else {
-      alert('Please fill in all required fields');
+      message.warning('Please fill in all required fields before proceeding');
     }
   };
 
@@ -244,693 +340,717 @@ const ProductForm: React.FC = () => {
     setCurrentStep(currentStep - 1);
   };
 
-  const handleSubmit = async () => {
-    if (!user) return;
+  const steps = [
+    { title: 'Basic Info', icon: <TagsOutlined /> },
+    { title: 'Weight Details', icon: <ScaleOutlined /> },
+    { title: 'Pricing', icon: <TagsOutlined /> },
+    { title: 'Stock & Location', icon: <TagsOutlined /> },
+    { title: 'Identification', icon: <BarcodeOutlined /> },
+    { title: 'Images & Tags', icon: <PictureOutlined /> },
+    { title: 'Review', icon: <CheckOutlined /> },
+  ];
 
-    try {
-      dispatch(setLoading(true));
+  // Step 0: Basic Information
+  const renderBasicInfo = () => (
+    <Card title="Basic Information">
+      <Row gutter={16}>
+        <Col span={12}>
+          <Form.Item
+            label="Category"
+            required
+            validateStatus={form.errors.category_id ? 'error' : ''}
+            help={form.errors.category_id}
+          >
+            <Select
+              placeholder="Select category"
+              value={form.values.category_id}
+              onChange={(value) => form.setFieldValue('category_id', value)}
+              showSearch
+              optionFilterProp="children"
+            >
+              {categories.map((cat) => (
+                <Option key={cat.id} value={cat.id}>
+                  {cat.category_name}
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
+        </Col>
+        <Col span={12}>
+          <Form.Item
+            label="Metal Type"
+            required
+            validateStatus={form.errors.metal_type_id ? 'error' : ''}
+            help={form.errors.metal_type_id}
+          >
+            <Select
+              placeholder="Select metal type"
+              value={form.values.metal_type_id}
+              onChange={(value) => form.setFieldValue('metal_type_id', value)}
+              showSearch
+              optionFilterProp="children"
+            >
+              {metalTypes.map((metal) => (
+                <Option key={metal.id} value={metal.id}>
+                  {metal.metal_name} ({metal.purity_percentage}%)
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
+        </Col>
+      </Row>
 
-      const productData = {
-        ...formData,
-        category_id: Number(formData.category_id),
-        metal_type_id: Number(formData.metal_type_id),
-        gross_weight: Number(formData.gross_weight),
-        net_weight: Number(formData.net_weight),
-        stone_weight: Number(formData.stone_weight),
-        purity: Number(formData.purity),
-        wastage_percentage: Number(formData.wastage_percentage),
-        unit_price: Number(formData.unit_price),
-        mrp: formData.mrp ? Number(formData.mrp) : undefined,
-        making_charge: Number(formData.making_charge),
-        quantity: Number(formData.quantity),
-        current_stock: Number(formData.current_stock),
-        min_stock_level: Number(formData.min_stock_level),
-        reorder_level: Number(formData.reorder_level),
-        created_by: user.id,
-      };
+      {generatedCode && (
+        <Alert
+          message={`Generated Product Code: ${generatedCode}`}
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+      )}
 
-      let response;
-      if (id) {
-        response = await window.electronAPI.product.update(Number(id), productData, user.id);
-      } else {
-        response = await window.electronAPI.product.create(productData);
+      <Row gutter={16}>
+        <Col span={12}>
+          <Form.Item
+            label="Product Name"
+            required
+            validateStatus={form.errors.product_name ? 'error' : ''}
+            help={form.errors.product_name}
+          >
+            <Input
+              placeholder="Enter product name"
+              value={form.values.product_name}
+              onChange={(e) => form.setFieldValue('product_name', e.target.value)}
+            />
+          </Form.Item>
+        </Col>
+        <Col span={12}>
+          <Form.Item label="Design Number">
+            <Input
+              placeholder="Enter design number"
+              value={form.values.design_number}
+              onChange={(e) => form.setFieldValue('design_number', e.target.value)}
+            />
+          </Form.Item>
+        </Col>
+      </Row>
+
+      <Row gutter={16}>
+        <Col span={12}>
+          <Form.Item label="Size">
+            <Input
+              placeholder="Enter size"
+              value={form.values.size}
+              onChange={(e) => form.setFieldValue('size', e.target.value)}
+            />
+          </Form.Item>
+        </Col>
+        <Col span={12}>
+          <Form.Item label="Status">
+            <Select
+              value={form.values.status}
+              onChange={(value) => form.setFieldValue('status', value)}
+            >
+              <Option value="in_stock">In Stock</Option>
+              <Option value="sold">Sold</Option>
+              <Option value="reserved">Reserved</Option>
+              <Option value="in_repair">In Repair</Option>
+              <Option value="with_karigar">With Karigar</Option>
+            </Select>
+          </Form.Item>
+        </Col>
+      </Row>
+
+      <Form.Item label="Description">
+        <TextArea
+          rows={3}
+          placeholder="Enter product description"
+          value={form.values.description}
+          onChange={(e) => form.setFieldValue('description', e.target.value)}
+        />
+      </Form.Item>
+    </Card>
+  );
+
+  // Step 1: Weight Details
+  const renderWeightDetails = () => (
+    <Card
+      title="Weight Details"
+      extra={
+        <Tooltip title="Read weight from scale">
+          <Button
+            icon={<ScaleOutlined />}
+            onClick={() => {
+              // Weight reading is handled by the WeighingScaleInput component
+            }}
+          >
+            Use Scale
+          </Button>
+        </Tooltip>
       }
+    >
+      <Row gutter={16}>
+        <Col span={8}>
+          <Form.Item
+            label="Gross Weight (g)"
+            required
+            validateStatus={form.errors.gross_weight ? 'error' : ''}
+            help={form.errors.gross_weight}
+          >
+            <WeighingScaleInput
+              value={form.values.gross_weight}
+              onChange={(value) => form.setFieldValue('gross_weight', value)}
+              unit="g"
+              precision={3}
+              showTareButton
+            />
+          </Form.Item>
+        </Col>
+        <Col span={8}>
+          <Form.Item
+            label="Net Weight (g)"
+            required
+            validateStatus={form.errors.net_weight ? 'error' : ''}
+            help={form.errors.net_weight}
+          >
+            <WeighingScaleInput
+              value={form.values.net_weight}
+              onChange={(value) => form.setFieldValue('net_weight', value)}
+              unit="g"
+              precision={3}
+              showTareButton
+            />
+          </Form.Item>
+        </Col>
+        <Col span={8}>
+          <Form.Item label="Stone Weight (g)">
+            <InputNumber
+              style={{ width: '100%' }}
+              value={form.values.stone_weight}
+              onChange={(value) => form.setFieldValue('stone_weight', value || 0)}
+              precision={3}
+              min={0}
+            />
+          </Form.Item>
+        </Col>
+      </Row>
 
-      if (response.success) {
-        alert(id ? 'Product updated successfully!' : 'Product created successfully!');
-        navigate('/products');
-      } else {
-        alert(response.message);
-      }
-    } catch (err: any) {
-      alert(err.message || 'Failed to save product');
-    } finally {
-      dispatch(setLoading(false));
-    }
-  };
+      <Row gutter={16}>
+        <Col span={12}>
+          <Form.Item
+            label="Purity (%)"
+            required
+            validateStatus={form.errors.purity ? 'error' : ''}
+            help={form.errors.purity}
+          >
+            <InputNumber
+              style={{ width: '100%' }}
+              value={form.values.purity}
+              onChange={(value) => form.setFieldValue('purity', value || 0)}
+              precision={2}
+              min={0}
+              max={100}
+              addonAfter="%"
+            />
+          </Form.Item>
+        </Col>
+        <Col span={12}>
+          <Form.Item label="Wastage (%)">
+            <InputNumber
+              style={{ width: '100%' }}
+              value={form.values.wastage_percentage}
+              onChange={(value) => form.setFieldValue('wastage_percentage', value || 0)}
+              precision={2}
+              min={0}
+              max={100}
+              addonAfter="%"
+            />
+          </Form.Item>
+        </Col>
+      </Row>
+
+      {form.values.net_weight > 0 && form.values.purity > 0 && (
+        <Alert
+          message={`Fine Weight: ${((form.values.net_weight * form.values.purity) / 100).toFixed(3)}g`}
+          type="info"
+          showIcon
+        />
+      )}
+    </Card>
+  );
+
+  // Step 2: Pricing
+  const renderPricing = () => (
+    <Card title="Pricing Information">
+      <Row gutter={16}>
+        <Col span={12}>
+          <Form.Item
+            label="Unit Price (₹)"
+            required
+            validateStatus={form.errors.unit_price ? 'error' : ''}
+            help={form.errors.unit_price}
+          >
+            <InputNumber
+              style={{ width: '100%' }}
+              value={form.values.unit_price}
+              onChange={(value) => form.setFieldValue('unit_price', value || 0)}
+              precision={2}
+              min={0}
+              prefix="₹"
+            />
+          </Form.Item>
+        </Col>
+        <Col span={12}>
+          <Form.Item label="MRP (₹)">
+            <InputNumber
+              style={{ width: '100%' }}
+              value={form.values.mrp}
+              onChange={(value) => form.setFieldValue('mrp', value || 0)}
+              precision={2}
+              min={0}
+              prefix="₹"
+            />
+          </Form.Item>
+        </Col>
+      </Row>
+
+      <Row gutter={16}>
+        <Col span={12}>
+          <Form.Item label="Making Charge Type">
+            <Radio.Group
+              value={form.values.making_charge_type}
+              onChange={(e) => form.setFieldValue('making_charge_type', e.target.value)}
+            >
+              <Radio value="per_gram">Per Gram</Radio>
+              <Radio value="percentage">Percentage</Radio>
+              <Radio value="fixed">Fixed</Radio>
+              <Radio value="slab">Slab</Radio>
+            </Radio.Group>
+          </Form.Item>
+        </Col>
+        <Col span={12}>
+          <Form.Item label="Making Charge">
+            <InputNumber
+              style={{ width: '100%' }}
+              value={form.values.making_charge}
+              onChange={(value) => form.setFieldValue('making_charge', value || 0)}
+              precision={2}
+              min={0}
+              addonAfter={form.values.making_charge_type === 'percentage' ? '%' : '₹'}
+            />
+          </Form.Item>
+        </Col>
+      </Row>
+    </Card>
+  );
+
+  // Step 3: Stock & Location
+  const renderStockLocation = () => (
+    <Card title="Stock & Location">
+      <Row gutter={16}>
+        <Col span={8}>
+          <Form.Item label="Quantity">
+            <InputNumber
+              style={{ width: '100%' }}
+              value={form.values.quantity}
+              onChange={(value) => form.setFieldValue('quantity', value || 1)}
+              min={0}
+            />
+          </Form.Item>
+        </Col>
+        <Col span={8}>
+          <Form.Item label="Current Stock">
+            <InputNumber
+              style={{ width: '100%' }}
+              value={form.values.current_stock}
+              onChange={(value) => form.setFieldValue('current_stock', value || 0)}
+              min={0}
+            />
+          </Form.Item>
+        </Col>
+        <Col span={8}>
+          <Form.Item label="Min Stock Level">
+            <InputNumber
+              style={{ width: '100%' }}
+              value={form.values.min_stock_level}
+              onChange={(value) => form.setFieldValue('min_stock_level', value || 0)}
+              min={0}
+            />
+          </Form.Item>
+        </Col>
+      </Row>
+
+      <Row gutter={16}>
+        <Col span={8}>
+          <Form.Item label="Reorder Level">
+            <InputNumber
+              style={{ width: '100%' }}
+              value={form.values.reorder_level}
+              onChange={(value) => form.setFieldValue('reorder_level', value || 0)}
+              min={0}
+            />
+          </Form.Item>
+        </Col>
+        <Col span={8}>
+          <Form.Item label="Location">
+            <Input
+              placeholder="e.g., Warehouse A"
+              value={form.values.location}
+              onChange={(e) => form.setFieldValue('location', e.target.value)}
+            />
+          </Form.Item>
+        </Col>
+        <Col span={8}>
+          <Form.Item label="Rack Number">
+            <Input
+              placeholder="e.g., R-123"
+              value={form.values.rack_number}
+              onChange={(e) => form.setFieldValue('rack_number', e.target.value)}
+            />
+          </Form.Item>
+        </Col>
+      </Row>
+
+      <Row gutter={16}>
+        <Col span={8}>
+          <Form.Item label="Shelf Number">
+            <Input
+              placeholder="e.g., S-456"
+              value={form.values.shelf_number}
+              onChange={(e) => form.setFieldValue('shelf_number', e.target.value)}
+            />
+          </Form.Item>
+        </Col>
+      </Row>
+    </Card>
+  );
+
+  // Step 4: Identification
+  const renderIdentification = () => (
+    <Card title="Identification & Tracking">
+      <Row gutter={16}>
+        <Col span={12}>
+          <Form.Item label="Barcode">
+            <Space.Compact style={{ width: '100%' }}>
+              <Input
+                placeholder="Scan or enter barcode"
+                value={form.values.barcode}
+                onChange={(e) => form.setFieldValue('barcode', e.target.value)}
+              />
+              <Button
+                icon={<BarcodeOutlined />}
+                onClick={() => setShowBarcodeScanner(true)}
+              >
+                Scan
+              </Button>
+            </Space.Compact>
+          </Form.Item>
+        </Col>
+        <Col span={12}>
+          <Form.Item label="RFID Tag">
+            <Space.Compact style={{ width: '100%' }}>
+              <Input
+                placeholder="Read or enter RFID tag"
+                value={form.values.rfid_tag}
+                onChange={(e) => form.setFieldValue('rfid_tag', e.target.value)}
+              />
+              <Button
+                icon={<WifiOutlined />}
+                onClick={() => setShowRFIDScanner(true)}
+              >
+                Read
+              </Button>
+            </Space.Compact>
+          </Form.Item>
+        </Col>
+      </Row>
+
+      <Divider>Hallmark Information</Divider>
+
+      <Row gutter={16}>
+        <Col span={8}>
+          <Form.Item label="HUID">
+            <Input
+              placeholder="Enter HUID"
+              value={form.values.huid}
+              onChange={(e) => form.setFieldValue('huid', e.target.value)}
+            />
+          </Form.Item>
+        </Col>
+        <Col span={8}>
+          <Form.Item label="Hallmark Number">
+            <Input
+              placeholder="Enter hallmark number"
+              value={form.values.hallmark_number}
+              onChange={(e) => form.setFieldValue('hallmark_number', e.target.value)}
+            />
+          </Form.Item>
+        </Col>
+        <Col span={8}>
+          <Form.Item label="Hallmark Center">
+            <Input
+              placeholder="Enter hallmark center"
+              value={form.values.hallmark_center}
+              onChange={(e) => form.setFieldValue('hallmark_center', e.target.value)}
+            />
+          </Form.Item>
+        </Col>
+      </Row>
+    </Card>
+  );
+
+  // Step 5: Images & Tags
+  const renderImagesAndTags = () => (
+    <Card title="Images & Tags">
+      <Form.Item label="Product Images">
+        <ImageUpload
+          value={form.values.images}
+          onChange={(images) => form.setFieldValue('images', images)}
+          maxImages={10}
+          maxSizePerImage={5}
+          compressImages
+        />
+      </Form.Item>
+
+      <Divider />
+
+      <Form.Item label="Tags">
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <Space.Compact style={{ width: '100%' }}>
+            <Input
+              placeholder="Add tags (e.g., bestseller, new-arrival)"
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              onPressEnter={addTag}
+            />
+            <Button type="primary" onClick={addTag}>
+              Add Tag
+            </Button>
+          </Space.Compact>
+          <div>
+            {form.values.tags.map((tag) => (
+              <Tag
+                key={tag}
+                closable
+                onClose={() => removeTag(tag)}
+                color="blue"
+              >
+                {tag}
+              </Tag>
+            ))}
+          </div>
+        </Space>
+      </Form.Item>
+
+      <Form.Item label="Notes">
+        <TextArea
+          rows={4}
+          placeholder="Additional notes about the product"
+          value={form.values.notes}
+          onChange={(e) => form.setFieldValue('notes', e.target.value)}
+        />
+      </Form.Item>
+    </Card>
+  );
+
+  // Step 6: Review
+  const renderReview = () => (
+    <Card title="Review Product Details">
+      <Tabs defaultActiveKey="1">
+        <TabPane tab="Basic Info" key="1">
+          <Row gutter={[16, 16]}>
+            <Col span={12}>
+              <strong>Product Name:</strong> {form.values.product_name || '-'}
+            </Col>
+            <Col span={12}>
+              <strong>Category:</strong>{' '}
+              {categories.find((c) => c.id === form.values.category_id)?.category_name || '-'}
+            </Col>
+            <Col span={12}>
+              <strong>Metal Type:</strong>{' '}
+              {metalTypes.find((m) => m.id === form.values.metal_type_id)?.metal_name || '-'}
+            </Col>
+            <Col span={12}>
+              <strong>Status:</strong> <Tag color="blue">{form.values.status}</Tag>
+            </Col>
+          </Row>
+        </TabPane>
+        <TabPane tab="Weight & Pricing" key="2">
+          <Row gutter={[16, 16]}>
+            <Col span={8}>
+              <strong>Gross Weight:</strong> {form.values.gross_weight}g
+            </Col>
+            <Col span={8}>
+              <strong>Net Weight:</strong> {form.values.net_weight}g
+            </Col>
+            <Col span={8}>
+              <strong>Purity:</strong> {form.values.purity}%
+            </Col>
+            <Col span={8}>
+              <strong>Unit Price:</strong> ₹{form.values.unit_price.toLocaleString('en-IN')}
+            </Col>
+            <Col span={8}>
+              <strong>MRP:</strong> ₹{form.values.mrp.toLocaleString('en-IN')}
+            </Col>
+            <Col span={8}>
+              <strong>Making Charge:</strong> {form.values.making_charge}{' '}
+              {form.values.making_charge_type === 'percentage' ? '%' : '₹'}
+            </Col>
+          </Row>
+        </TabPane>
+        <TabPane tab="Stock & Location" key="3">
+          <Row gutter={[16, 16]}>
+            <Col span={8}>
+              <strong>Current Stock:</strong> {form.values.current_stock}
+            </Col>
+            <Col span={8}>
+              <strong>Min Stock Level:</strong> {form.values.min_stock_level}
+            </Col>
+            <Col span={8}>
+              <strong>Location:</strong> {form.values.location || '-'}
+            </Col>
+          </Row>
+        </TabPane>
+        <TabPane tab="Identification" key="4">
+          <Row gutter={[16, 16]}>
+            <Col span={12}>
+              <strong>Barcode:</strong> {form.values.barcode || '-'}
+            </Col>
+            <Col span={12}>
+              <strong>RFID Tag:</strong> {form.values.rfid_tag || '-'}
+            </Col>
+            <Col span={12}>
+              <strong>HUID:</strong> {form.values.huid || '-'}
+            </Col>
+            <Col span={12}>
+              <strong>Hallmark Number:</strong> {form.values.hallmark_number || '-'}
+            </Col>
+          </Row>
+        </TabPane>
+        <TabPane tab="Images & Tags" key="5">
+          <div>
+            <strong>Images:</strong> {form.values.images.length} image(s)
+          </div>
+          <div style={{ marginTop: 16 }}>
+            <strong>Tags:</strong>
+            <div style={{ marginTop: 8 }}>
+              {form.values.tags.length > 0 ? (
+                form.values.tags.map((tag) => (
+                  <Tag key={tag} color="blue">
+                    {tag}
+                  </Tag>
+                ))
+              ) : (
+                '-'
+              )}
+            </div>
+          </div>
+        </TabPane>
+      </Tabs>
+    </Card>
+  );
 
   const renderStepContent = () => {
     switch (currentStep) {
+      case 0:
+        return renderBasicInfo();
       case 1:
-        return (
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold mb-4">Basic Information</h2>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Category <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={formData.category_id}
-                  onChange={(e) => handleInputChange('category_id', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                >
-                  <option value="">Select Category</option>
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.category_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Metal Type <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={formData.metal_type_id}
-                  onChange={(e) => handleInputChange('metal_type_id', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                >
-                  <option value="">Select Metal Type</option>
-                  {metalTypes.map((metal) => (
-                    <option key={metal.id} value={metal.id}>
-                      {metal.metal_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {generatedCode && (
-              <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-                <p className="text-sm text-blue-700">
-                  Product Code: <span className="font-semibold">{generatedCode}</span>
-                </p>
-              </div>
-            )}
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Product Name <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={formData.product_name}
-                onChange={(e) => handleInputChange('product_name', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="e.g., Gold Ring with Diamond"
-                required
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Design Number
-                </label>
-                <input
-                  type="text"
-                  value={formData.design_number}
-                  onChange={(e) => handleInputChange('design_number', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Size
-                </label>
-                <input
-                  type="text"
-                  value={formData.size}
-                  onChange={(e) => handleInputChange('size', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g., 18, M, L"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Description
-              </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => handleInputChange('description', e.target.value)}
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Product description..."
-              />
-            </div>
-          </div>
-        );
-
+        return renderWeightDetails();
       case 2:
-        return (
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold mb-4">Weight Details</h2>
-
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Gross Weight (g) <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  step="0.001"
-                  value={formData.gross_weight}
-                  onChange={(e) => handleInputChange('gross_weight', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Net Weight (g) <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  step="0.001"
-                  value={formData.net_weight}
-                  onChange={(e) => handleInputChange('net_weight', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Stone Weight (g)
-                </label>
-                <input
-                  type="number"
-                  step="0.001"
-                  value={formData.stone_weight}
-                  onChange={(e) => handleInputChange('stone_weight', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Purity (%) <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={formData.purity}
-                  onChange={(e) => handleInputChange('purity', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g., 91.67 for 22K"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Wastage (%)
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={formData.wastage_percentage}
-                  onChange={(e) => handleInputChange('wastage_percentage', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-
-            {formData.net_weight && formData.purity && (
-              <div className="bg-green-50 border border-green-200 rounded-md p-3">
-                <p className="text-sm text-green-700">
-                  Fine Weight (Pure Metal): {' '}
-                  <span className="font-semibold">
-                    {((Number(formData.net_weight) * Number(formData.purity)) / 100).toFixed(3)}g
-                  </span>
-                </p>
-              </div>
-            )}
-          </div>
-        );
-
+        return renderPricing();
       case 3:
-        return (
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold mb-4">Pricing</h2>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Unit Price (₹) <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={formData.unit_price}
-                  onChange={(e) => handleInputChange('unit_price', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  MRP (₹)
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={formData.mrp}
-                  onChange={(e) => handleInputChange('mrp', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Making Charge Type
-                </label>
-                <select
-                  value={formData.making_charge_type}
-                  onChange={(e) => handleInputChange('making_charge_type', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="per_gram">Per Gram</option>
-                  <option value="percentage">Percentage</option>
-                  <option value="fixed">Fixed</option>
-                  <option value="slab">Slab</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Making Charge
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={formData.making_charge}
-                  onChange={(e) => handleInputChange('making_charge', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-          </div>
-        );
-
+        return renderStockLocation();
       case 4:
-        return (
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold mb-4">Stock & Location</h2>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Quantity
-                </label>
-                <input
-                  type="number"
-                  value={formData.quantity}
-                  onChange={(e) => handleInputChange('quantity', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Current Stock
-                </label>
-                <input
-                  type="number"
-                  value={formData.current_stock}
-                  onChange={(e) => handleInputChange('current_stock', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Minimum Stock Level
-                </label>
-                <input
-                  type="number"
-                  value={formData.min_stock_level}
-                  onChange={(e) => handleInputChange('min_stock_level', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Reorder Level
-                </label>
-                <input
-                  type="number"
-                  value={formData.reorder_level}
-                  onChange={(e) => handleInputChange('reorder_level', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Status
-              </label>
-              <select
-                value={formData.status}
-                onChange={(e) => handleInputChange('status', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="in_stock">In Stock</option>
-                <option value="sold">Sold</option>
-                <option value="reserved">Reserved</option>
-                <option value="in_repair">In Repair</option>
-                <option value="with_karigar">With Karigar</option>
-              </select>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Location
-                </label>
-                <input
-                  type="text"
-                  value={formData.location}
-                  onChange={(e) => handleInputChange('location', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Rack Number
-                </label>
-                <input
-                  type="text"
-                  value={formData.rack_number}
-                  onChange={(e) => handleInputChange('rack_number', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Shelf Number
-                </label>
-                <input
-                  type="text"
-                  value={formData.shelf_number}
-                  onChange={(e) => handleInputChange('shelf_number', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-          </div>
-        );
-
+        return renderIdentification();
       case 5:
-        return (
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold mb-4">Identification</h2>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Barcode
-                </label>
-                <input
-                  type="text"
-                  value={formData.barcode}
-                  onChange={(e) => handleInputChange('barcode', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="EAN-13 / UPC"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  RFID Tag
-                </label>
-                <input
-                  type="text"
-                  value={formData.rfid_tag}
-                  onChange={(e) => handleInputChange('rfid_tag', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="EPC format"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                HUID (Hallmark Unique ID)
-              </label>
-              <input
-                type="text"
-                value={formData.huid}
-                onChange={(e) => handleInputChange('huid', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Hallmark Number
-                </label>
-                <input
-                  type="text"
-                  value={formData.hallmark_number}
-                  onChange={(e) => handleInputChange('hallmark_number', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Hallmark Center
-                </label>
-                <input
-                  type="text"
-                  value={formData.hallmark_center}
-                  onChange={(e) => handleInputChange('hallmark_center', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-          </div>
-        );
-
+        return renderImagesAndTags();
       case 6:
-        return (
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold mb-4">Stones / Diamonds</h2>
-            <p className="text-sm text-gray-600">
-              Add stones after creating the product, or skip this step for now.
-            </p>
-
-            {productStones.length > 0 && (
-              <div className="space-y-2">
-                {productStones.map((ps, index) => (
-                  <div key={index} className="border border-gray-200 rounded-lg p-3">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <p className="font-medium">{ps.stone?.stone_name}</p>
-                        <p className="text-sm text-gray-600">
-                          {ps.quantity} pc(s) × {ps.carat_weight} carat
-                        </p>
-                      </div>
-                      <p className="font-medium">₹{ps.value_with_4c?.toLocaleString()}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        );
-
-      case 7:
-        return (
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold mb-4">Review & Submit</h2>
-
-            <div className="bg-gray-50 rounded-lg p-6 space-y-4">
-              <div>
-                <h3 className="font-semibold text-gray-700 mb-2">Product Information</h3>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <p><span className="text-gray-600">Product:</span> {formData.product_name}</p>
-                  <p><span className="text-gray-600">Code:</span> {generatedCode}</p>
-                  <p><span className="text-gray-600">Weight:</span> {formData.gross_weight}g</p>
-                  <p><span className="text-gray-600">Price:</span> ₹{formData.unit_price}</p>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tags
-                </label>
-                <div className="flex gap-2 mb-2">
-                  <input
-                    type="text"
-                    value={tagInput}
-                    onChange={(e) => setTagInput(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && addTag()}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Add tags..."
-                  />
-                  <button
-                    type="button"
-                    onClick={addTag}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                  >
-                    Add
-                  </button>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {formData.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm flex items-center gap-2"
-                    >
-                      {tag}
-                      <button
-                        type="button"
-                        onClick={() => removeTag(tag)}
-                        className="text-blue-600 hover:text-blue-800"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Notes
-                </label>
-                <textarea
-                  value={formData.notes}
-                  onChange={(e) => handleInputChange('notes', e.target.value)}
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Additional notes..."
-                />
-              </div>
-            </div>
-          </div>
-        );
-
+        return renderReview();
       default:
         return null;
     }
   };
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div style={{ padding: 24 }}>
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">
-          {id ? 'Edit Product' : 'Add New Product'}
+      <div style={{ marginBottom: 24 }}>
+        <Space>
+          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/products')}>
+            Back to Products
+          </Button>
+        </Space>
+        <h1 style={{ fontSize: 24, fontWeight: 600, marginTop: 16 }}>
+          {isEditMode ? 'Edit Product' : 'Create New Product'}
         </h1>
-        <p className="text-gray-600 mt-1">
-          {id ? 'Update product information' : 'Create a new product in your inventory'}
-        </p>
       </div>
 
-      {/* Step Indicator */}
-      <div className="mb-8">
-        <div className="flex justify-between items-center">
+      {/* Steps */}
+      <Card style={{ marginBottom: 24 }}>
+        <Steps current={currentStep} size="small">
           {steps.map((step, index) => (
-            <React.Fragment key={step.number}>
-              <div className="flex flex-col items-center">
-                <div
-                  className={`w-12 h-12 rounded-full flex items-center justify-center text-lg ${
-                    currentStep >= step.number
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-200 text-gray-600'
-                  }`}
-                >
-                  {step.icon}
-                </div>
-                <p className={`text-xs mt-2 ${currentStep >= step.number ? 'text-blue-600 font-medium' : 'text-gray-500'}`}>
-                  {step.name}
-                </p>
-              </div>
-              {index < steps.length - 1 && (
-                <div className={`flex-1 h-1 mx-2 ${currentStep > step.number ? 'bg-blue-600' : 'bg-gray-200'}`} />
-              )}
-            </React.Fragment>
+            <Step key={index} title={step.title} icon={step.icon} />
           ))}
-        </div>
-      </div>
+        </Steps>
+      </Card>
 
       {/* Form Content */}
-      <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+      <Form layout="vertical">
         {renderStepContent()}
-      </div>
+      </Form>
 
       {/* Navigation Buttons */}
-      <div className="flex justify-between">
-        <button
-          onClick={() => navigate('/products')}
-          className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-        >
-          Cancel
-        </button>
+      <Card style={{ marginTop: 24 }}>
+        <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+          <Space>
+            {currentStep > 0 && (
+              <Button icon={<ArrowLeftOutlined />} onClick={prevStep}>
+                Previous
+              </Button>
+            )}
+          </Space>
+          <Space>
+            <Button icon={<CloseOutlined />} onClick={() => navigate('/products')}>
+              Cancel
+            </Button>
+            {currentStep < steps.length - 1 ? (
+              <Button type="primary" icon={<ArrowRightOutlined />} onClick={nextStep}>
+                Next
+              </Button>
+            ) : (
+              <Button
+                type="primary"
+                icon={<SaveOutlined />}
+                onClick={form.handleSubmit}
+                loading={loading}
+              >
+                {isEditMode ? 'Update Product' : 'Create Product'}
+              </Button>
+            )}
+          </Space>
+        </Space>
+      </Card>
 
-        <div className="flex gap-2">
-          {currentStep > 1 && (
-            <button
-              onClick={prevStep}
-              className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-            >
-              Previous
-            </button>
-          )}
+      {/* Hardware Modals */}
+      <Modal
+        title="Scan Barcode"
+        open={showBarcodeScanner}
+        onCancel={() => setShowBarcodeScanner(false)}
+        footer={null}
+        width={600}
+      >
+        <BarcodeScanner onScan={handleBarcodeScanned} enableContinuous={false} />
+      </Modal>
 
-          {currentStep < steps.length ? (
-            <button
-              onClick={nextStep}
-              className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-            >
-              Next
-            </button>
-          ) : (
-            <button
-              onClick={handleSubmit}
-              disabled={loading}
-              className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
-            >
-              {loading ? 'Saving...' : id ? 'Update Product' : 'Create Product'}
-            </button>
-          )}
-        </div>
-      </div>
+      <Modal
+        title="Read RFID Tag"
+        open={showRFIDScanner}
+        onCancel={() => setShowRFIDScanner(false)}
+        footer={null}
+        width={600}
+      >
+        <RFIDScanner onRead={handleRFIDRead} enableContinuous={false} />
+      </Modal>
     </div>
   );
 };

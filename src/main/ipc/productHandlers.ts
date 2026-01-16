@@ -246,6 +246,64 @@ export const setupProductHandlers = (): void => {
     }
   });
 
+  /**
+   * Handle get stock history
+   */
+  ipcMain.handle('product:getStockHistory', async (
+    _event: IpcMainInvokeEvent,
+    productId: number,
+    filters?: any,
+    pagination?: any
+  ) => {
+    try {
+      return await ProductService.getStockHistory(productId, filters, pagination);
+    } catch (error: any) {
+      console.error('IPC product:getStockHistory error:', error);
+      return {
+        success: false,
+        message: 'An error occurred while retrieving stock history',
+      };
+    }
+  });
+
+  /**
+   * Handle get stock summary for charts
+   */
+  ipcMain.handle('product:getStockSummary', async (
+    _event: IpcMainInvokeEvent,
+    productId: number,
+    days?: number
+  ) => {
+    try {
+      return await ProductService.getStockSummary(productId, days);
+    } catch (error: any) {
+      console.error('IPC product:getStockSummary error:', error);
+      return {
+        success: false,
+        message: 'An error occurred while retrieving stock summary',
+      };
+    }
+  });
+
+  /**
+   * Handle get stock activity for timeline
+   */
+  ipcMain.handle('product:getStockActivity', async (
+    _event: IpcMainInvokeEvent,
+    productId: number,
+    limit?: number
+  ) => {
+    try {
+      return await ProductService.getStockActivity(productId, limit);
+    } catch (error: any) {
+      console.error('IPC product:getStockActivity error:', error);
+      return {
+        success: false,
+        message: 'An error occurred while retrieving stock activity',
+      };
+    }
+  });
+
   console.log('✓ Product IPC handlers registered');
 };
 

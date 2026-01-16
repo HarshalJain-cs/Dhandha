@@ -264,10 +264,19 @@ export class CustomerService {
 
   /**
    * Get customer by ID
+   * Includes recent sales invoices
    */
   static async getById(id: number): Promise<CustomerServiceResponse> {
     try {
-      const customer = await Customer.findByPk(id);
+      const customer = await Customer.findByPk(id, {
+        include: [
+          {
+            association: 'sales_invoices',
+            limit: 10,
+            order: [['invoice_date', 'DESC']],
+          },
+        ],
+      });
 
       if (!customer) {
         return {
