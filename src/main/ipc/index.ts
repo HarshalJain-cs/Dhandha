@@ -10,6 +10,7 @@ import { setupInvoiceHandlers } from './invoiceHandlers';
 import { setupDashboardHandlers } from './dashboardHandlers';
 import { setupKarigarHandlers } from './karigarHandlers';
 import { setupWorkOrderHandlers } from './workOrderHandlers';
+import { setupWorkOrderReportHandlers } from './workOrderReportHandlers';
 import { setupGoldLoanHandlers } from './goldLoanHandlers';
 import { setupVendorHandlers } from './vendorHandlers';
 import { setupPurchaseOrderHandlers } from './purchaseOrderHandlers';
@@ -64,6 +65,7 @@ export const setupAllHandlers = (): void => {
   // Setup karigar (craftsman) handlers
   setupKarigarHandlers();
   setupWorkOrderHandlers();
+  setupWorkOrderReportHandlers();
 
   // Setup gold loan handlers
   setupGoldLoanHandlers();
