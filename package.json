@@ -58,6 +58,7 @@
     "electron-updater": "^6.7.3",
     "escpos": "^3.0.0-alpha.6",
     "escpos-usb": "^3.0.0-alpha.4",
+    "exceljs": "^4.4.0",
     "express": "^4.18.2",
     "html2canvas": "^1.4.1",
     "jsonwebtoken": "^9.0.2",

@@ -3,7 +3,7 @@ import { Op } from 'sequelize';
 import Karigar from '../models/Karigar';
 import WorkOrder from '../models/WorkOrder';
 import WorkOrderPayment from '../models/WorkOrderPayment';
-import sequelize from '../database';
+import { sequelize } from '../database/connection';
 
 export function setupKarigarHandlers() {
   // Get all karigars

@@ -3,7 +3,7 @@ import { Op } from 'sequelize';
 import WorkOrder from '../models/WorkOrder';
 import WorkOrderPayment from '../models/WorkOrderPayment';
 import Karigar from '../models/Karigar';
-import sequelize from '../database';
+import { sequelize } from '../database/connection';
 
 export function setupWorkOrderHandlers() {
   // Generate work order number
@@ -171,7 +171,6 @@ export function setupWorkOrderHandlers() {
           [sequelize.fn('SUM', sequelize.col('totalAmount')), 'totalAmount'],
           [sequelize.fn('SUM', sequelize.col('balanceAmount')), 'totalBalance'],
         ],
-.
         group: ['status'],
         raw: true,
       });

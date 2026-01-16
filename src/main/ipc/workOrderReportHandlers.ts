@@ -3,7 +3,7 @@ import { Op } from 'sequelize';
 import WorkOrder from '../models/WorkOrder';
 import WorkOrderPayment from '../models/WorkOrderPayment';
 import Karigar from '../models/Karigar';
-import sequelize from '../database';
+import { sequelize } from '../database/connection';
 import ExcelJS from 'exceljs';
 import path from 'path';
 import { app } from 'electron';
