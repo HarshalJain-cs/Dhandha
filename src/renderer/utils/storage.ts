@@ -202,7 +202,7 @@ export class UserPreferences {
    * @param value - Preference value
    */
   set<T>(key: string, value: T): void {
-    const prefs = storage.get<Record<string, any>>(this.key, {});
+    const prefs = storage.get<Record<string, any>>(this.key, {}) || {};
     prefs[key] = value;
     storage.set(this.key, prefs);
   }
@@ -212,7 +212,7 @@ export class UserPreferences {
    * @param key - Preference key
    */
   remove(key: string): void {
-    const prefs = storage.get<Record<string, any>>(this.key, {});
+    const prefs = storage.get<Record<string, any>>(this.key, {}) || {};
     delete prefs[key];
     storage.set(this.key, prefs);
   }

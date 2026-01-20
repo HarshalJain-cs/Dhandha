@@ -101,8 +101,8 @@ export class HardwareService {
 
   // Continuous scan handlers
   private static barcodeContinuousHandler: ((data: string) => void) | null = null;
-  private static rfidContinuousHandler: ((data: string) => void) | null = null;
-  private static scaleContinuousHandler: ((data: number) => void) | null = null;
+  private static rfidContinuousHandler: ((tag: string, rssi: number) => void) | null = null;
+  private static scaleContinuousHandler: ((weight: number, stable: boolean) => void) | null = null;
 
   // ============================================
   // SETTINGS MANAGEMENT

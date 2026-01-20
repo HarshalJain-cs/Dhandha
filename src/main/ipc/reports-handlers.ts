@@ -317,14 +317,9 @@ ipcMain.handle(
 
 ipcMain.handle('reports:stock-valuation', async () => {
   try {
-    // Get current gold rate
+    // Get current gold rate (latest by rate_date)
     const goldRate = await MetalRate.findOne({
-      where: {
-        metal_type: 'gold', // Assuming a specific metal type and purity
-        purity: '22K',
-        is_active: true,
-      },
-      order: [['effective_date', 'DESC']],
+      order: [['rate_date', 'DESC']],
     });
 
     const products = await Product.findAll({
@@ -333,40 +328,44 @@ ipcMain.handle('reports:stock-valuation', async () => {
         'id',
         'product_code',
         'product_name',
-        'product_type',
         'net_weight',
         'current_stock',
-        'making_charges',
-        'making_charges_type',
-        'purity', // Added purity for better calculation
+        'making_charge',
+        'making_charge_type',
+        'purity',
       ],
       include: [
         {
           model: Category,
           as: 'category',
-          attributes: ['name'],
+          attributes: ['category_name'],
         },
       ],
     });
 
     const valuationData = products.map((product: any) => {
-      // Simplified value calculation - needs actual metal prices per purity
-      let goldValue = 0;
-      if (goldRate && product.net_weight && product.purity === '22K') { // Example logic
-          goldValue = product.net_weight * (goldRate.rate_per_gram || 0);
+      // Get rate based on purity
+      let ratePerGram = 0;
+      if (goldRate) {
+        const purity = product.purity || 91.6; // Default to 22K (91.6%)
+        if (purity >= 99) ratePerGram = Number(goldRate.gold_24k) || 0;
+        else if (purity >= 91) ratePerGram = Number(goldRate.gold_22k) || 0;
+        else if (purity >= 75) ratePerGram = Number(goldRate.gold_18k) || 0;
       }
-      
+
+      const goldValue = (product.net_weight || 0) * ratePerGram;
+
       const makingValue =
-        product.making_charges_type === 'per_gram'
-          ? (product.net_weight || 0) * (product.making_charges || 0)
-          : (product.making_charges || 0);
-      
+        product.making_charge_type === 'per_gram'
+          ? (product.net_weight || 0) * (product.making_charge || 0)
+          : (product.making_charge || 0);
+
       const unitValue = goldValue + makingValue;
       const totalValue = unitValue * (product.current_stock || 0);
 
       return {
         ...product.toJSON(),
-        gold_rate: goldRate?.rate_per_gram || 0,
+        gold_rate: ratePerGram,
         gold_value: goldValue,
         making_value: makingValue,
         unit_value: unitValue,

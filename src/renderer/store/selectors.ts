@@ -142,30 +142,30 @@ export const selectFilteredProducts = createSelector(
       }
 
       // Metal type filter
-      if (filters.metal_type && product.metal_type !== filters.metal_type) {
+      if (filters.metal_type_id && product.metal_type_id !== filters.metal_type_id) {
         return false;
       }
 
-      // Search filter (name, code, SKU, barcode)
+      // Search filter (name, code, barcode)
       if (filters.search) {
         const searchLower = filters.search.toLowerCase();
         const matchesSearch =
           product.product_name.toLowerCase().includes(searchLower) ||
           product.product_code.toLowerCase().includes(searchLower) ||
-          product.sku?.toLowerCase().includes(searchLower) ||
           product.barcode?.toLowerCase().includes(searchLower);
 
         if (!matchesSearch) return false;
       }
 
-      // Stock status filter
-      if (filters.stock_status) {
-        const inStock = product.stock_quantity > 0;
-        const lowStock = product.stock_quantity <= product.reorder_level;
+      // Low stock filter
+      if (filters.low_stock) {
+        const isLowStock = product.current_stock > 0 && product.current_stock <= product.reorder_level;
+        if (!isLowStock) return false;
+      }
 
-        if (filters.stock_status === 'in_stock' && !inStock) return false;
-        if (filters.stock_status === 'out_of_stock' && inStock) return false;
-        if (filters.stock_status === 'low_stock' && (!inStock || !lowStock)) return false;
+      // Out of stock filter
+      if (filters.out_of_stock) {
+        if (product.current_stock > 0) return false;
       }
 
       return true;
@@ -177,21 +177,21 @@ export const selectFilteredProducts = createSelector(
  * Get products with low stock
  */
 export const selectLowStockProducts = createSelector([selectAllProducts], (products) =>
-  products.filter((p) => p.stock_quantity > 0 && p.stock_quantity <= p.reorder_level)
+  products.filter((p) => p.current_stock > 0 && p.current_stock <= p.reorder_level)
 );
 
 /**
  * Get out of stock products
  */
 export const selectOutOfStockProducts = createSelector([selectAllProducts], (products) =>
-  products.filter((p) => p.stock_quantity === 0 && p.is_active)
+  products.filter((p) => p.current_stock === 0 && p.is_active)
 );
 
 /**
  * Get total inventory value
  */
 export const selectInventoryValue = createSelector([selectAllProducts], (products) =>
-  products.reduce((sum, p) => sum + p.stock_quantity * p.cost_price, 0)
+  products.reduce((sum, p) => sum + p.current_stock * p.unit_price, 0)
 );
 
 /**
@@ -200,12 +200,12 @@ export const selectInventoryValue = createSelector([selectAllProducts], (product
 export const selectProductStats = createSelector([selectAllProducts], (products) => {
   const active = products.filter((p) => p.is_active).length;
   const inactive = products.length - active;
-  const inStock = products.filter((p) => p.stock_quantity > 0).length;
-  const outOfStock = products.filter((p) => p.stock_quantity === 0 && p.is_active).length;
-  const lowStock = products.filter((p) => p.stock_quantity > 0 && p.stock_quantity <= p.reorder_level)
+  const inStock = products.filter((p) => p.current_stock > 0).length;
+  const outOfStock = products.filter((p) => p.current_stock === 0 && p.is_active).length;
+  const lowStock = products.filter((p) => p.current_stock > 0 && p.current_stock <= p.reorder_level)
     .length;
-  const totalValue = products.reduce((sum, p) => sum + p.stock_quantity * p.cost_price, 0);
-  const totalQuantity = products.reduce((sum, p) => sum + p.stock_quantity, 0);
+  const totalValue = products.reduce((sum, p) => sum + p.current_stock * p.unit_price, 0);
+  const totalQuantity = products.reduce((sum, p) => sum + p.current_stock, 0);
 
   return {
     total: products.length,
@@ -233,8 +233,8 @@ export const selectFilteredInvoices = createSelector(
   [selectAllInvoices, selectInvoiceFilters],
   (invoices, filters) => {
     return invoices.filter((invoice) => {
-      // Status filter
-      if (filters.status && invoice.payment_status !== filters.status) {
+      // Payment status filter
+      if (filters.payment_status && invoice.payment_status !== filters.payment_status) {
         return false;
       }
 
@@ -243,25 +243,22 @@ export const selectFilteredInvoices = createSelector(
         return false;
       }
 
-      // Search filter (invoice number, customer name)
-      if (filters.search) {
-        const searchLower = filters.search.toLowerCase();
-        const matchesSearch = invoice.invoice_number.toLowerCase().includes(searchLower);
-        // Note: Customer name matching would require customer data to be included
-        if (!matchesSearch) return false;
+      // Invoice type filter
+      if (filters.invoice_type && invoice.invoice_type !== filters.invoice_type) {
+        return false;
       }
 
       // Date range filter
-      if (filters.start_date) {
+      if (filters.from_date) {
         const invoiceDate = new Date(invoice.invoice_date);
-        const startDate = new Date(filters.start_date);
-        if (invoiceDate < startDate) return false;
+        const fromDate = new Date(filters.from_date);
+        if (invoiceDate < fromDate) return false;
       }
 
-      if (filters.end_date) {
+      if (filters.to_date) {
         const invoiceDate = new Date(invoice.invoice_date);
-        const endDate = new Date(filters.end_date);
-        if (invoiceDate > endDate) return false;
+        const toDate = new Date(filters.to_date);
+        if (invoiceDate > toDate) return false;
       }
 
       return true;
@@ -283,9 +280,9 @@ export const selectInvoiceStats = createSelector([selectAllInvoices], (invoices)
   const paid = invoices.filter((i) => i.payment_status === 'paid').length;
   const pending = invoices.filter((i) => i.payment_status === 'pending').length;
   const partial = invoices.filter((i) => i.payment_status === 'partial').length;
-  const totalSales = invoices.reduce((sum, i) => sum + i.total_amount, 0);
-  const totalPaid = invoices.reduce((sum, i) => sum + (i.paid_amount || 0), 0);
-  const totalPending = totalSales - totalPaid;
+  const totalSales = invoices.reduce((sum, i) => sum + i.grand_total, 0);
+  const totalPending = invoices.reduce((sum, i) => sum + i.balance_due, 0);
+  const totalPaid = totalSales - totalPending;
 
   return {
     total: invoices.length,
@@ -310,10 +307,15 @@ export const selectCurrentUser = createSelector(
   (user) => {
     if (!user) return null;
 
+    const nameParts = user.full_name.split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+
     return {
       ...user,
-      fullName: `${user.first_name} ${user.last_name || ''}`,
-      initials: `${user.first_name[0]}${user.last_name?.[0] || ''}`.toUpperCase(),
+      firstName,
+      lastName,
+      initials: `${firstName[0] || ''}${lastName[0] || ''}`.toUpperCase(),
     };
   }
 );
@@ -324,9 +326,9 @@ export const selectCurrentUser = createSelector(
 export const makeSelectHasPermission = (permission: string) =>
   createSelector([(state: RootState) => state.auth.user], (user) => {
     if (!user) return false;
-    // Implement permission logic based on user role
-    // This is a placeholder - adjust based on your permission system
-    return user.role === 'admin' || user.role === 'manager';
+    // Implement permission logic based on user role_id
+    // role_id 1 = admin, role_id 2 = manager (placeholder - adjust based on your permission system)
+    return user.role_id === 1 || user.role_id === 2;
   });
 
 // ============================================================================

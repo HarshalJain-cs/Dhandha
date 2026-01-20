@@ -81,9 +81,12 @@ export const StockHistoryChart: React.FC<StockHistoryChartProps> = ({
     setDateRange(null);
   };
 
-  const handleDateRangeChange = (dates: [Dayjs, Dayjs] | null) => {
-    if (dates) {
-      setDateRange(dates);
+  const handleDateRangeChange = (
+    dates: [Dayjs | null, Dayjs | null] | null,
+    _dateStrings: [string, string]
+  ) => {
+    if (dates && dates[0] && dates[1]) {
+      setDateRange([dates[0], dates[1]]);
       const diffDays = dates[1].diff(dates[0], 'day');
       setDays(diffDays);
     } else {

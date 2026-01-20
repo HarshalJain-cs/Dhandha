@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { validateField, validateForm } from '../utils/validation';
 import { DraftSaver } from '../utils/storage';
 
-interface UseFormOptions<T> {
+export interface UseFormOptions<T> {
   initialValues: T;
   validationSchema?: any;
   onSubmit: (values: T) => void | Promise<void>;
@@ -14,7 +14,7 @@ interface UseFormOptions<T> {
   restoreFromDraft?: boolean;
 }
 
-interface UseFormReturn<T> {
+export interface UseFormReturn<T> {
   values: T;
   errors: Record<string, string>;
   touched: Record<string, boolean>;

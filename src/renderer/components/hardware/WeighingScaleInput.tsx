@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Input, Button, Space, Alert, Switch, Tag, InputNumber } from 'antd';
-import { ScaleOutlined, SyncOutlined, StopOutlined } from '@ant-design/icons';
+import { DashboardOutlined, SyncOutlined, StopOutlined } from '@ant-design/icons';
 
 /**
  * Weighing Scale Input Component
@@ -269,7 +269,7 @@ const WeighingScaleInput: React.FC<WeighingScaleInputProps> = ({
           />
           <Button
             type="primary"
-            icon={<ScaleOutlined />}
+            icon={<DashboardOutlined />}
             onClick={handleReadClick}
             loading={reading}
             disabled={disabled || continuous}
@@ -298,7 +298,7 @@ const WeighingScaleInput: React.FC<WeighingScaleInputProps> = ({
               <Button
                 type="default"
                 size="small"
-                icon={<ScaleOutlined />}
+                icon={<DashboardOutlined />}
                 onClick={handleStartContinuous}
                 disabled={disabled}
               >
@@ -330,7 +330,7 @@ const WeighingScaleInput: React.FC<WeighingScaleInputProps> = ({
             description="Scale is continuously sending weight updates. Place item on scale."
             type="info"
             showIcon
-            icon={<ScaleOutlined className="animate-pulse" />}
+            icon={<DashboardOutlined className="animate-pulse" />}
           />
         )}
 
@@ -342,7 +342,7 @@ const WeighingScaleInput: React.FC<WeighingScaleInputProps> = ({
             closable={!!readError}
             onClose={() => setReadError(null)}
             showIcon
-            size="small"
+            style={{ fontSize: 12, padding: '4px 12px' }}
           />
         )}
 

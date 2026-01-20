@@ -57,6 +57,7 @@ interface ElectronAPI {
     delete: (id: number, deletedBy: number) => Promise<any>;
     search: (searchTerm: string) => Promise<any>;
     updateBalance: (id: number, amount: number, operation: string) => Promise<any>;
+    generateCode: () => Promise<any>;
   };
   invoice: {
     create: (invoiceData: any, userId: number) => Promise<any>;
@@ -168,11 +169,62 @@ interface ElectronAPI {
     testPrint: () => Promise<any>;
     getStatus: () => Promise<any>;
   };
+  dashboard: {
+    getSalesTrends: (startDate: string, endDate: string, groupBy: string) => Promise<any>;
+    getProductDistribution: () => Promise<any>;
+    getTopProducts: (limit: number, startDate: string, endDate: string) => Promise<any>;
+    getPaymentSummary: (startDate: string, endDate: string) => Promise<any>;
+    getStats: () => Promise<any>;
+  };
+}
+
+interface ProductAPI {
+  getById: (id: number) => Promise<any>;
+  getAll: (filters?: any, pagination?: any) => Promise<any>;
+  create: (productData: any) => Promise<any>;
+  update: (id: number, updateData: any, updatedBy: number) => Promise<any>;
+  delete: (id: number, deletedBy: number) => Promise<any>;
+  updateStock: (id: number, quantity: number, operation: string, updatedBy: number) => Promise<any>;
+  getLowStock: () => Promise<any>;
+  getOutOfStock: () => Promise<any>;
+  search: (searchTerm: string) => Promise<any>;
+  generateBarcode: () => Promise<any>;
+  generateCode: (categoryId?: number, metalTypeId?: number) => Promise<any>;
+  getStockHistory: (productId: number, days?: number) => Promise<any>;
+  getStockActivity: (productId: number, limit?: number, offset?: number) => Promise<any>;
+  getStockSummary: (productId: number, days?: number) => Promise<any>;
+  searchByBarcode: (barcode: string) => Promise<any>;
+  searchByRFID: (rfid: string) => Promise<any>;
+}
+
+interface CategoryAPI {
+  getAll: (filters?: any) => Promise<any>;
+  getById: (id: number) => Promise<any>;
+  create: (categoryData: any) => Promise<any>;
+  update: (id: number, updateData: any, updatedBy: number) => Promise<any>;
+  delete: (id: number, deletedBy: number) => Promise<any>;
+  getTree: () => Promise<any>;
+}
+
+interface MetalTypeAPI {
+  getAll: (filters?: any) => Promise<any>;
+  getById: (id: number) => Promise<any>;
+  create: (metalTypeData: any) => Promise<any>;
+  update: (id: number, updateData: any, updatedBy: number) => Promise<any>;
+  delete: (id: number, deletedBy: number) => Promise<any>;
+  updateRate: (id: number, newRate: number, updatedBy: number) => Promise<any>;
+}
+
+interface WindowAPI {
+  products: ProductAPI;
+  categories: CategoryAPI;
+  metalTypes: MetalTypeAPI;
 }
 
 declare global {
   interface Window {
     electronAPI: ElectronAPI;
+    api: WindowAPI;
   }
 }
 

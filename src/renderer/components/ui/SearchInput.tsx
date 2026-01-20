@@ -3,22 +3,31 @@ import { Input } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import type { InputProps } from 'antd';
 
-interface SearchInputProps extends Omit<InputProps, 'onChange' | 'prefix'> {
+export interface SearchInputProps extends Omit<InputProps, 'prefix'> {
   onSearch: (searchTerm: string) => void;
   debounceMs?: number;
+  value?: string;  // Controlled value
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;  // Controlled onChange
 }
 
 /**
  * SearchInput Component
  * Debounced search input with search icon and clear functionality
+ * Supports both controlled and uncontrolled modes
  */
 const SearchInput: React.FC<SearchInputProps> = ({
   onSearch,
   debounceMs = 300,
   placeholder = 'Search...',
+  value: controlledValue,
+  onChange: controlledOnChange,
   ...inputProps
 }) => {
-  const [searchTerm, setSearchTerm] = useState('');
+  const [internalValue, setInternalValue] = useState('');
+
+  // Use controlled value if provided
+  const isControlled = controlledValue !== undefined;
+  const searchTerm = isControlled ? controlledValue : internalValue;
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -28,12 +37,19 @@ const SearchInput: React.FC<SearchInputProps> = ({
     return () => clearTimeout(timer);
   }, [searchTerm, debounceMs, onSearch]);
 
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isControlled) {
+      setInternalValue(e.target.value);
+    }
+    controlledOnChange?.(e);
+  };
+
   return (
     <Input
       prefix={<SearchOutlined className="text-gray-400" />}
       placeholder={placeholder}
       value={searchTerm}
-      onChange={(e) => setSearchTerm(e.target.value)}
+      onChange={handleChange}
       allowClear
       {...inputProps}
     />

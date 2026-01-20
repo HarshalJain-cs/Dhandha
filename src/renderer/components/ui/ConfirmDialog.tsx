@@ -11,6 +11,7 @@ interface ConfirmDialogProps {
   confirmText?: string;
   cancelText?: string;
   variant?: 'danger' | 'warning' | 'primary';
+  type?: 'danger' | 'warning' | 'primary';  // Alias for variant
   loading?: boolean;
 }
 
@@ -22,9 +23,12 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   message,
   confirmText = 'Confirm',
   cancelText = 'Cancel',
-  variant = 'primary',
+  variant,
+  type,
   loading = false,
 }) => {
+  // Support both 'variant' and 'type' props
+  const dialogVariant = variant || type || 'primary';
   return (
     <Modal
       open={open}
@@ -34,7 +38,7 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
         <Button key="cancel" variant="ghost" onClick={onCancel} disabled={loading}>
           {cancelText}
         </Button>,
-        <Button key="confirm" variant={variant} onClick={onConfirm} loading={loading}>
+        <Button key="confirm" variant={dialogVariant} onClick={onConfirm} loading={loading}>
           {confirmText}
         </Button>,
       ]}

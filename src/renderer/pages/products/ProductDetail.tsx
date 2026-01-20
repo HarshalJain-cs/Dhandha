@@ -1,5 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../store';
 import {
   Card,
   Descriptions,
@@ -80,6 +82,8 @@ interface Product {
 const ProductDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useSelector((state: RootState) => state.auth);
+  const printRef = useRef<HTMLDivElement>(null);
 
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
@@ -122,7 +126,7 @@ const ProductDetail: React.FC = () => {
       okType: 'danger',
       onOk: async () => {
         try {
-          const response = await window.api.products.delete(product.id, 1); // TODO: Get user ID from auth
+          const response = await window.api.products.delete(product.id, user?.id || 1);
           if (response.success) {
             message.success('Product deleted successfully');
             navigate('/products');
@@ -137,13 +141,134 @@ const ProductDetail: React.FC = () => {
   };
 
   const handlePrint = () => {
-    // TODO: Implement print functionality
-    message.info('Print functionality coming soon');
+    if (!product) return;
+
+    // Create a print-friendly version of the product details
+    const printContent = `
+      <html>
+        <head>
+          <title>Product: ${product.product_code}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            h1 { color: #1890ff; margin-bottom: 5px; }
+            .code { color: #666; font-size: 14px; margin-bottom: 20px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+            th { background-color: #f5f5f5; width: 30%; }
+            .section-title { font-size: 16px; font-weight: bold; margin-top: 30px; margin-bottom: 10px; color: #333; }
+            .footer { margin-top: 30px; text-align: center; color: #666; font-size: 12px; }
+          </style>
+        </head>
+        <body>
+          <h1>${product.product_name}</h1>
+          <div class="code">Code: ${product.product_code}</div>
+
+          <div class="section-title">Basic Information</div>
+          <table>
+            <tr><th>Category</th><td>${product.category?.category_name || '-'}</td></tr>
+            <tr><th>Metal Type</th><td>${product.metalType ? `${product.metalType.metal_name} (${product.metalType.purity_percentage}%)` : '-'}</td></tr>
+            <tr><th>Design Number</th><td>${product.design_number || '-'}</td></tr>
+            <tr><th>Size</th><td>${product.size || '-'}</td></tr>
+            <tr><th>Status</th><td>${product.status.replace('_', ' ').toUpperCase()}</td></tr>
+          </table>
+
+          <div class="section-title">Weight Details</div>
+          <table>
+            <tr><th>Gross Weight</th><td>${product.gross_weight}g</td></tr>
+            <tr><th>Net Weight</th><td>${product.net_weight}g</td></tr>
+            <tr><th>Stone Weight</th><td>${product.stone_weight}g</td></tr>
+            <tr><th>Fine Weight</th><td>${product.fine_weight}g</td></tr>
+            <tr><th>Purity</th><td>${product.purity}%</td></tr>
+          </table>
+
+          <div class="section-title">Pricing</div>
+          <table>
+            <tr><th>Unit Price</th><td>₹${product.unit_price.toLocaleString('en-IN')}</td></tr>
+            <tr><th>MRP</th><td>₹${product.mrp?.toLocaleString('en-IN') || '-'}</td></tr>
+            <tr><th>Making Charge</th><td>${product.making_charge}${product.making_charge_type === 'percentage' ? '%' : '₹'}</td></tr>
+          </table>
+
+          <div class="section-title">Stock & Location</div>
+          <table>
+            <tr><th>Current Stock</th><td>${product.current_stock}</td></tr>
+            <tr><th>Location</th><td>${product.location || '-'}</td></tr>
+            <tr><th>Rack/Shelf</th><td>${product.rack_number || '-'} / ${product.shelf_number || '-'}</td></tr>
+          </table>
+
+          <div class="section-title">Identification</div>
+          <table>
+            <tr><th>Barcode</th><td>${product.barcode || '-'}</td></tr>
+            <tr><th>RFID Tag</th><td>${product.rfid_tag || '-'}</td></tr>
+            <tr><th>HUID</th><td>${product.huid || '-'}</td></tr>
+            <tr><th>Hallmark Number</th><td>${product.hallmark_number || '-'}</td></tr>
+          </table>
+
+          <div class="footer">
+            Printed on ${new Date().toLocaleString('en-IN')} | Dhandha Jewellery ERP
+          </div>
+        </body>
+      </html>
+    `;
+
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
+      printWindow.close();
+    } else {
+      message.error('Unable to open print window. Please check your popup blocker settings.');
+    }
   };
 
-  const handleShare = () => {
-    // TODO: Implement share functionality
-    message.info('Share functionality coming soon');
+  const handleShare = async () => {
+    if (!product) return;
+
+    // Create shareable text with product details
+    const shareText = `
+📿 ${product.product_name}
+━━━━━━━━━━━━━━━━━━━━━
+
+📋 Code: ${product.product_code}
+📦 Category: ${product.category?.category_name || '-'}
+⚙️ Metal: ${product.metalType ? `${product.metalType.metal_name} (${product.metalType.purity_percentage}%)` : '-'}
+
+⚖️ Weight Details:
+   Gross: ${product.gross_weight}g
+   Net: ${product.net_weight}g
+   Purity: ${product.purity}%
+
+💰 Price: ₹${product.unit_price.toLocaleString('en-IN')}
+📊 Stock: ${product.current_stock} units
+
+${product.huid ? `🔖 HUID: ${product.huid}` : ''}
+${product.barcode ? `📊 Barcode: ${product.barcode}` : ''}
+
+━━━━━━━━━━━━━━━━━━━━━
+Shared from Dhandha Jewellery ERP
+    `.trim();
+
+    try {
+      // Try using the Web Share API first (for mobile/supported browsers)
+      if (navigator.share) {
+        await navigator.share({
+          title: product.product_name,
+          text: shareText,
+        });
+        message.success('Product shared successfully');
+      } else {
+        // Fallback to clipboard copy
+        await navigator.clipboard.writeText(shareText);
+        message.success('Product details copied to clipboard');
+      }
+    } catch (error: any) {
+      // If share was cancelled or clipboard failed
+      if (error.name !== 'AbortError') {
+        console.error('Share failed:', error);
+        message.error('Failed to share product details');
+      }
+    }
   };
 
   const openImageViewer = (index: number) => {

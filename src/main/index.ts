@@ -1,5 +1,6 @@
 // Use require for electron to avoid webpack module resolution issues
 const { app, BrowserWindow } = require('electron');
+import type { BrowserWindow as BrowserWindowType } from 'electron';
 import path from 'path';
 import log from 'electron-log';
 import { initializeDatabase } from './database/connection';
@@ -18,13 +19,13 @@ declare const MAIN_WINDOW_WEBPACK_ENTRY: string;
  * - Creates application window
  */
 
-let mainWindow: BrowserWindow | null = null;
+let mainWindow: BrowserWindowType | null = null;
 
 /**
  * Create the main application window
  */
 const createWindow = (): void => {
-  mainWindow = new BrowserWindow({
+  const window = new BrowserWindow({
     width: 1400,
     height: 900,
     minWidth: 1200,
@@ -39,23 +40,25 @@ const createWindow = (): void => {
     show: false, // Don't show until ready
   });
 
+  mainWindow = window;
+
   // Load the app using webpack entry point
-  mainWindow.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
+  window.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
 
   // Open DevTools in development
   const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
   if (isDev) {
-    mainWindow.webContents.openDevTools();
+    window.webContents.openDevTools();
   }
 
   // Show window when ready
-  mainWindow.once('ready-to-show', () => {
-    mainWindow?.show();
+  window.once('ready-to-show', () => {
+    window.show();
     console.log('✓ Application window loaded successfully');
   });
 
   // Handle window closed
-  mainWindow.on('closed', () => {
+  window.on('closed', () => {
     mainWindow = null;
   });
 };
@@ -163,7 +166,7 @@ app.on('activate', () => {
 });
 
 // Handle before quit
-app.on('before-quit', async (event) => {
+app.on('before-quit', async (event: Electron.Event) => {
   log.info('⚙  Shutting down application...');
 
   // Prevent default to allow graceful shutdown

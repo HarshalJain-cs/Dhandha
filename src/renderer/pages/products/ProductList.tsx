@@ -47,6 +47,7 @@ import {
   setPagination,
   setLoading,
   setError,
+  type Product,
 } from '../../store/slices/productSlice';
 import { setCategories } from '../../store/slices/categorySlice';
 import { setMetalTypes } from '../../store/slices/metalTypeSlice';
@@ -56,27 +57,6 @@ import { useDebounce } from '../../hooks';
 
 const { Option } = Select;
 const { Panel } = Collapse;
-
-interface Product {
-  id: number;
-  product_code: string;
-  product_name: string;
-  category?: { id: number; category_name: string };
-  metalType?: { id: number; metal_name: string };
-  gross_weight: number;
-  net_weight: number;
-  purity: number;
-  unit_price: number;
-  mrp?: number;
-  current_stock: number;
-  min_stock_level: number;
-  status: 'in_stock' | 'sold' | 'reserved' | 'in_repair' | 'with_karigar';
-  barcode?: string;
-  rfid_tag?: string;
-  images?: string[];
-  tags?: string[];
-  is_active: boolean;
-}
 
 const ProductList: React.FC = () => {
   const navigate = useNavigate();

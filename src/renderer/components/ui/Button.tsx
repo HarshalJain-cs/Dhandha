@@ -1,8 +1,11 @@
 import React from 'react';
 import { Button as AntButton, ButtonProps as AntButtonProps } from 'antd';
 
-interface ButtonProps extends Omit<AntButtonProps, 'type'> {
-  variant?: 'primary' | 'secondary' | 'danger' | 'success' | 'ghost';
+type CustomVariant = 'primary' | 'secondary' | 'danger' | 'success' | 'ghost' | 'warning' | 'text' | 'link';
+
+interface ButtonProps extends Omit<AntButtonProps, 'type' | 'variant'> {
+  variant?: CustomVariant;
+  type?: CustomVariant;  // Alias for variant for compatibility
   fullWidth?: boolean;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
@@ -10,33 +13,41 @@ interface ButtonProps extends Omit<AntButtonProps, 'type'> {
 
 const Button: React.FC<ButtonProps> = ({
   children,
-  variant = 'primary',
+  variant,
+  type,
   fullWidth = false,
   leftIcon,
   rightIcon,
   className = '',
   ...props
 }) => {
-  const variantMap = {
-    primary: 'primary' as const,
-    secondary: 'default' as const,
-    danger: 'primary' as const,
-    success: 'primary' as const,
-    ghost: 'text' as const,
+  // Support both 'variant' and 'type' props, with variant taking precedence
+  const buttonVariant = variant || type || 'primary';
+
+  const typeMap: Record<CustomVariant, AntButtonProps['type']> = {
+    primary: 'primary',
+    secondary: 'default',
+    danger: 'primary',
+    success: 'primary',
+    ghost: 'text',
+    warning: 'primary',
+    text: 'text',
+    link: 'link',
   };
 
-  const customClasses = {
+  const customClasses: Partial<Record<CustomVariant, string>> = {
     danger: 'ant-btn-dangerous',
     success: 'bg-green-600 hover:bg-green-700 border-green-600',
+    warning: 'bg-orange-500 hover:bg-orange-600 border-orange-500',
   };
 
   return (
     <AntButton
-      type={variantMap[variant]}
-      danger={variant === 'danger'}
+      type={typeMap[buttonVariant]}
+      danger={buttonVariant === 'danger'}
       className={`
         ${fullWidth ? 'w-full' : ''}
-        ${customClasses[variant as keyof typeof customClasses] || ''}
+        ${customClasses[buttonVariant as keyof typeof customClasses] || ''}
         ${className}
       `}
       icon={leftIcon}

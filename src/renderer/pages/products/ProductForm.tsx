@@ -26,7 +26,7 @@ import {
   CloseOutlined,
   BarcodeOutlined,
   WifiOutlined,
-  ScaleOutlined,
+  DashboardOutlined,
   PictureOutlined,
   TagsOutlined,
   ArrowLeftOutlined,
@@ -342,7 +342,7 @@ const ProductForm: React.FC = () => {
 
   const steps = [
     { title: 'Basic Info', icon: <TagsOutlined /> },
-    { title: 'Weight Details', icon: <ScaleOutlined /> },
+    { title: 'Weight Details', icon: <DashboardOutlined /> },
     { title: 'Pricing', icon: <TagsOutlined /> },
     { title: 'Stock & Location', icon: <TagsOutlined /> },
     { title: 'Identification', icon: <BarcodeOutlined /> },
@@ -479,7 +479,7 @@ const ProductForm: React.FC = () => {
       extra={
         <Tooltip title="Read weight from scale">
           <Button
-            icon={<ScaleOutlined />}
+            icon={<DashboardOutlined />}
             onClick={() => {
               // Weight reading is handled by the WeighingScaleInput component
             }}

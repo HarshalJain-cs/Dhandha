@@ -314,12 +314,13 @@ const updateAPI = {
 };
 
 const dashboardAPI = {
-  getSalesTrends: () => ipcRenderer.invoke('dashboard:get-sales-trends'),
+  getSalesTrends: (startDate: string, endDate: string, groupBy: string) => ipcRenderer.invoke('dashboard:get-sales-trends', startDate, endDate, groupBy),
   getProductDistribution: () => ipcRenderer.invoke('dashboard:get-product-distribution'),
-  getTopProducts: () => ipcRenderer.invoke('dashboard:get-top-products'),
-  getPaymentSummary: () => ipcRenderer.invoke('dashboard:get-payment-summary'),
+  getTopProducts: (limit: number, startDate: string, endDate: string) => ipcRenderer.invoke('dashboard:get-top-products', limit, startDate, endDate),
+  getPaymentSummary: (startDate: string, endDate: string) => ipcRenderer.invoke('dashboard:get-payment-summary', startDate, endDate),
   getRevenueStats: () => ipcRenderer.invoke('dashboard:get-revenue-stats'),
   getCustomerStats: () => ipcRenderer.invoke('dashboard:get-customer-stats'),
+  getStats: () => ipcRenderer.invoke('dashboard:get-stats'),
 };
 
 const reportsAPI = {

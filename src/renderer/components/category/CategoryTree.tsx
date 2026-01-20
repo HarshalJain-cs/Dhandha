@@ -289,11 +289,11 @@ const CategoryTree: React.FC<CategoryTreeProps> = ({
         )}
       </Space>
 
-      <style jsx>{`
-        .category-tree-component :global(.ant-tree-node-content-wrapper) {
+      <style>{`
+        .category-tree-component .ant-tree-node-content-wrapper {
           width: 100%;
         }
-        .category-tree-component :global(.ant-tree-title) {
+        .category-tree-component .ant-tree-title {
           width: 100%;
         }
       `}</style>

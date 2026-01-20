@@ -63,7 +63,7 @@ export function setupKarigarHandlers() {
   });
 
   // Create karigar
-  ipcMain.handle('karigar:create', async (event, karigarData) => {.
+  ipcMain.handle('karigar:create', async (event, karigarData) => {
     try {
       const karigar = await Karigar.create(karigarData);
       return { success: true, data: karigar };
