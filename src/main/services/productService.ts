@@ -7,14 +7,23 @@ import { StockTransaction } from '../database/models/StockTransaction';
 import { User } from '../database/models/User';
 import { Op, col } from 'sequelize';
 import { sequelize } from '../database/connection';
+import { CreateProductData, UpdateProductData } from '../../shared/types';
 
 /**
  * Product Service Response Interface
  */
-export interface ProductServiceResponse {
+export interface ProductServiceResponse<T = any> {
   success: boolean;
   message: string;
-  data?: any;
+  data?: T;
+}
+
+export interface ProductListResponse {
+  products: Product[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
 }
 
 /**
@@ -43,40 +52,7 @@ export class ProductService {
   /**
    * Create new product
    */
-  static async create(data: {
-    category_id: number;
-    metal_type_id: number;
-    product_name: string;
-    description?: string;
-    design_number?: string;
-    size?: string;
-    gross_weight: number;
-    net_weight: number;
-    stone_weight?: number;
-    wastage_percentage?: number;
-    making_charge_type: 'per_gram' | 'percentage' | 'fixed' | 'slab';
-    making_charge?: number;
-    purity: number;
-    unit_price: number;
-    mrp?: number;
-    quantity?: number;
-    current_stock?: number;
-    min_stock_level?: number;
-    reorder_level?: number;
-    location?: string;
-    rack_number?: string;
-    shelf_number?: string;
-    barcode?: string;
-    rfid_tag?: string;
-    huid?: string;
-    hallmark_number?: string;
-    hallmark_center?: string;
-    images?: string[];
-    tags?: string[];
-    notes?: string;
-    custom_fields?: any;
-    created_by: number;
-  }): Promise<ProductServiceResponse> {
+  static async create(data: CreateProductData): Promise<ProductServiceResponse<Product>> {
     try {
       // Validate category exists
       const category = await Category.findByPk(data.category_id);
@@ -176,7 +152,7 @@ export class ProductService {
   static async getAll(filters?: ProductFilters, pagination?: {
     page: number;
     limit: number;
-  }): Promise<ProductServiceResponse> {
+  }): Promise<ProductServiceResponse<ProductListResponse>> {
     try {
       const where: any = {};
 
@@ -290,7 +266,7 @@ export class ProductService {
   /**
    * Get product by ID with full details
    */
-  static async getById(id: number): Promise<ProductServiceResponse> {
+  static async getById(id: number): Promise<ProductServiceResponse<Product>> {
     try {
       const product = await Product.findByPk(id, {
         include: [
@@ -339,6 +315,7 @@ export class ProductService {
         message: 'Product retrieved successfully',
         data: {
           ...product.toJSON(),
+          // @ts-ignore - stock_alert is a computed property added by service
           stock_alert: stockAlert,
           total_stone_value: totalStoneValue,
         },
@@ -357,42 +334,9 @@ export class ProductService {
    */
   static async update(
     id: number,
-    data: Partial<{
-      category_id: number;
-      metal_type_id: number;
-      product_name: string;
-      description: string;
-      design_number: string;
-      size: string;
-      gross_weight: number;
-      net_weight: number;
-      stone_weight: number;
-      wastage_percentage: number;
-      making_charge_type: 'per_gram' | 'percentage' | 'fixed' | 'slab';
-      making_charge: number;
-      purity: number;
-      unit_price: number;
-      mrp: number;
-      current_stock: number;
-      min_stock_level: number;
-      reorder_level: number;
-      location: string;
-      rack_number: string;
-      shelf_number: string;
-      barcode: string;
-      rfid_tag: string;
-      huid: string;
-      hallmark_number: string;
-      hallmark_center: string;
-      status: 'in_stock' | 'sold' | 'reserved' | 'in_repair' | 'with_karigar';
-      images: string[];
-      tags: string[];
-      notes: string;
-      custom_fields: any;
-      is_active: boolean;
-    }>,
+    data: UpdateProductData,
     updated_by: number
-  ): Promise<ProductServiceResponse> {
+  ): Promise<ProductServiceResponse<Product>> {
     try {
       const product = await Product.findByPk(id);
 
@@ -490,7 +434,7 @@ export class ProductService {
   /**
    * Delete product (soft delete)
    */
-  static async delete(id: number, deleted_by: number): Promise<ProductServiceResponse> {
+  static async delete(id: number, deleted_by: number): Promise<ProductServiceResponse<{ message: string }>> {
     try {
       const product = await Product.findByPk(id);
 

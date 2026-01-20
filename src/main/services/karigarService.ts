@@ -4,14 +4,15 @@ import { MetalTransaction } from '../database/models/MetalTransaction';
 import { Product } from '../database/models/Product';
 import { Op } from 'sequelize';
 import { sequelize } from '../database/connection';
+import { CreateCustomerData } from '../../shared/types';
 
 /**
  * Karigar Service Response Interface
  */
-export interface KarigarServiceResponse {
+export interface KarigarServiceResponse<T = any> {
   success: boolean;
   message: string;
-  data?: any;
+  data?: T;
 }
 
 /**
@@ -48,7 +49,7 @@ export class KarigarService {
   static async createKarigar(
     data: any,
     createdBy: number
-  ): Promise<KarigarServiceResponse> {
+  ): Promise<KarigarServiceResponse<any>> {
     try {
       // Check mobile uniqueness
       const existingKarigar = await Karigar.findOne({
@@ -152,7 +153,7 @@ export class KarigarService {
   /**
    * Get karigar by ID
    */
-  static async getKarigarById(id: number): Promise<KarigarServiceResponse> {
+  static async getKarigarById(id: number): Promise<KarigarServiceResponse<any>> {
     try {
       const karigar = await Karigar.findByPk(id);
 
@@ -687,7 +688,7 @@ export class KarigarService {
   /**
    * Get karigar dashboard statistics
    */
-  static async getKarigarStats(karigarId?: number): Promise<KarigarServiceResponse> {
+  static async getKarigarStats(karigarId?: number): Promise<KarigarServiceResponse<any>> {
     try {
       const where: any = {};
       if (karigarId) {

@@ -1,5 +1,7 @@
 import { ipcMain, IpcMainInvokeEvent } from 'electron';
 import { InvoiceService } from '../services/invoiceService';
+import { CreateInvoiceData, InvoiceItemData, Payment, OldGoldTransaction } from '../../shared/types';
+import log from 'electron-log';
 
 /**
  * Setup Invoice IPC Handlers
@@ -8,28 +10,28 @@ export function setupInvoiceHandlers(): void {
   /**
    * Create new invoice
    */
-  ipcMain.handle(
-    'invoice:create',
-    async (
-      _event: IpcMainInvokeEvent,
-      customerId: number,
-      items: any[],
-      oldGoldData: any | null,
-      payments: any[],
-      invoiceData: any,
-      createdBy: number
-    ) => {
-      try {
-        return await InvoiceService.create(
-          customerId,
-          items,
-          oldGoldData,
-          payments,
-          invoiceData,
-          createdBy
-        );
-      } catch (error: any) {
-        return {
+   ipcMain.handle(
+     'invoice:create',
+     async (
+       _event: IpcMainInvokeEvent,
+       customerId: number,
+       items: InvoiceItemData[],
+       oldGoldData: any | null,
+       payments: any[],
+       invoiceData: any,
+        createdBy: number
+     ): Promise<any> => {
+       try {
+         return await InvoiceService.create(
+           customerId,
+           items,
+           oldGoldData,
+           payments,
+           invoiceData,
+           createdBy
+         );
+       } catch (error: any) {
+         return {
           success: false,
           message: error.message || 'An error occurred while creating invoice',
         };

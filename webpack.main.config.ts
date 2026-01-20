@@ -1,4 +1,5 @@
 import type { Configuration } from 'webpack';
+import webpack from 'webpack';
 import path from 'path';
 import CopyWebpackPlugin from 'copy-webpack-plugin';
 
@@ -48,6 +49,14 @@ export const mainConfig: Configuration = {
     },
   },
   plugins: [
+    new webpack.DefinePlugin({
+      MAIN_WINDOW_WEBPACK_ENTRY: JSON.stringify(process.env.NODE_ENV === 'production'
+        ? `file://${path.resolve(__dirname, '.webpack/renderer/main_window/index.html')}`
+        : 'http://localhost:5173'),
+      MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY: JSON.stringify(process.env.NODE_ENV === 'production'
+        ? path.resolve(__dirname, '.webpack/renderer/main_window/preload.js')
+        : path.resolve(__dirname, '.webpack/renderer/main_window/preload.js')), // Adjust this based on where preload is built
+    }),
     new CopyWebpackPlugin({
       patterns: [
         {

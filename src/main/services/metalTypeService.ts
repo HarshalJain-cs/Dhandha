@@ -5,10 +5,10 @@ import { Op } from 'sequelize';
 /**
  * Metal Type Service Response Interface
  */
-export interface MetalTypeServiceResponse {
+export interface MetalTypeServiceResponse<T = any> {
   success: boolean;
   message: string;
-  data?: any;
+  data?: T;
 }
 
 /**
@@ -59,7 +59,7 @@ export class MetalTypeService {
   /**
    * Get metal type by ID
    */
-  static async getById(id: number): Promise<MetalTypeServiceResponse> {
+  static async getById(id: number): Promise<MetalTypeServiceResponse<any>> {
     try {
       const metalType = await MetalType.findByPk(id);
 
@@ -206,7 +206,7 @@ export class MetalTypeService {
   /**
    * Delete metal type (soft delete)
    */
-  static async delete(id: number, deleted_by: number): Promise<MetalTypeServiceResponse> {
+  static async delete(id: number, deleted_by: number): Promise<MetalTypeServiceResponse<any>> {
     try {
       const metalType = await MetalType.findByPk(id);
 
@@ -282,7 +282,7 @@ export class MetalTypeService {
   /**
    * Get current rates for all active metal types
    */
-  static async getCurrentRates(): Promise<MetalTypeServiceResponse> {
+  static async getCurrentRates(): Promise<MetalTypeServiceResponse<any>> {
     try {
       const metalTypes = await MetalType.findAll({
         where: { is_active: true },

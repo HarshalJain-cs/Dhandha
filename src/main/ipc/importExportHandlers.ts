@@ -1,4 +1,5 @@
 import { ipcMain, dialog } from 'electron';
+import type { SaveDialogReturnValue } from 'electron';
 import { ImportExportService } from '../services/importExportService';
 import fs from 'fs';
 import path from 'path';
@@ -15,11 +16,13 @@ export function setupImportExportHandlers(): void {
   ipcMain.handle('export:products', async (event, filters, format) => {
     const result = await ImportExportService.exportProducts(filters, format);
     if (result.success) {
-      const { filePath } = await dialog.showSaveDialog({
-        title: 'Export Products',
-        defaultPath: `products_${new Date().getTime()}.${format}`,
+      const dialogResult = await dialog.showSaveDialog({
+        title: 'Export Invoices',
+        defaultPath: `invoices_${new Date().getTime()}.${format}`,
         filters: [{ name: format.toUpperCase(), extensions: [format] }],
-      });
+      }) as unknown as SaveDialogReturnValue;
+
+      const { filePath } = dialogResult;
 
       if (filePath) {
         fs.writeFileSync(filePath, result.data);
@@ -32,11 +35,13 @@ export function setupImportExportHandlers(): void {
   ipcMain.handle('export:customers', async (event, filters, format) => {
     const result = await ImportExportService.exportCustomers(filters, format);
     if (result.success) {
-      const { filePath } = await dialog.showSaveDialog({
-        title: 'Export Customers',
-        defaultPath: `customers_${new Date().getTime()}.${format}`,
-        filters: [{ name: format.toUpperCase(), extensions: [format] }],
-      });
+      const dialogResult = await dialog.showSaveDialog({
+        title: 'Export Karigars',
+        defaultPath: `karigars_${new Date().getTime()}.csv`,
+        filters: [{ name: 'CSV', extensions: ['csv'] }],
+      }) as unknown as SaveDialogReturnValue;
+
+      const { filePath } = dialogResult;
 
       if (filePath) {
         fs.writeFileSync(filePath, result.data);
@@ -49,11 +54,13 @@ export function setupImportExportHandlers(): void {
   ipcMain.handle('export:invoices', async (event, filters, format) => {
     const result = await ImportExportService.exportInvoices(filters, format);
     if (result.success) {
-      const { filePath } = await dialog.showSaveDialog({
-        title: 'Export Invoices',
-        defaultPath: `invoices_${new Date().getTime()}.${format}`,
+      const result = await dialog.showSaveDialog({
+        title: 'Export Customers',
+        defaultPath: `customers_${new Date().getTime()}.${format}`,
         filters: [{ name: format.toUpperCase(), extensions: [format] }],
       });
+
+      const { filePath } = result;
 
       if (filePath) {
         fs.writeFileSync(filePath, result.data);
@@ -66,11 +73,13 @@ export function setupImportExportHandlers(): void {
   ipcMain.handle('export:loans', async (event, filters, format) => {
     const result = await ImportExportService.exportGoldLoans(filters, format);
     if (result.success) {
-      const { filePath } = await dialog.showSaveDialog({
-        title: 'Export Gold Loans',
-        defaultPath: `gold_loans_${new Date().getTime()}.${format}`,
+      const result = await dialog.showSaveDialog({
+        title: 'Export Invoices',
+        defaultPath: `invoices_${new Date().getTime()}.${format}`,
         filters: [{ name: format.toUpperCase(), extensions: [format] }],
       });
+
+      const { filePath } = result;
 
       if (filePath) {
         fs.writeFileSync(filePath, result.data);
@@ -83,11 +92,13 @@ export function setupImportExportHandlers(): void {
   ipcMain.handle('export:generateTemplate', async (event, type) => {
     const result = ImportExportService.generateTemplate(type);
     if (result.success) {
-      const { filePath } = await dialog.showSaveDialog({
-        title: `${type.charAt(0).toUpperCase() + type.slice(1)} Import Template`,
-        defaultPath: `${type}_template.xlsx`,
-        filters: [{ name: 'Excel', extensions: ['xlsx'] }],
+      const result = await dialog.showSaveDialog({
+        title: 'Export Karigars',
+        defaultPath: `karigars_${new Date().getTime()}.${format}`,
+        filters: [{ name: format.toUpperCase(), extensions: [format] }],
       });
+
+      const { filePath } = result;
 
       if (filePath) {
         fs.writeFileSync(filePath, result.data);

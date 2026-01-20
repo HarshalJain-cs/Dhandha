@@ -1,10 +1,18 @@
-// Use require for electron to avoid webpack module resolution issues
-const { app, BrowserWindow } = require('electron');
-import type { BrowserWindow as BrowserWindowType } from 'electron';
+import { app, BrowserWindow, Tray, Menu } from 'electron';
+import type { Event } from 'electron';
 import path from 'path';
 import log from 'electron-log';
 import { initializeDatabase } from './database/connection';
 import postgresService from './services/postgresService';
+
+// Extend the app interface to include isQuitting property
+declare global {
+  namespace Electron {
+    interface App {
+      isQuitting?: boolean;
+    }
+  }
+}
 
 /**
  * Declare webpack entry points provided by Electron Forge
@@ -19,7 +27,8 @@ declare const MAIN_WINDOW_WEBPACK_ENTRY: string;
  * - Creates application window
  */
 
-let mainWindow: BrowserWindowType | null = null;
+let mainWindow: BrowserWindow | null = null;
+let tray: any = null;
 
 /**
  * Create the main application window
@@ -51,16 +60,92 @@ const createWindow = (): void => {
     window.webContents.openDevTools();
   }
 
-  // Show window when ready
-  window.once('ready-to-show', () => {
-    window.show();
-    console.log('✓ Application window loaded successfully');
-  });
+   // Show window when ready
+   window.once('ready-to-show', () => {
+     window.show();
+     log.info('✓ Application window loaded successfully');
+   });
 
   // Handle window closed
   window.on('closed', () => {
     mainWindow = null;
   });
+
+  // Handle window minimize/close to tray
+  window.on('minimize', (event: any) => {
+    event.preventDefault();
+    window.hide();
+  });
+
+  window.on('close', (event: any) => {
+    if (!app.isQuitting) {
+      event.preventDefault();
+      window.hide();
+      return false;
+    }
+  });
+};
+
+/**
+ * Create the system tray
+ */
+const createTray = (): void => {
+  try {
+    const iconPath = path.join(__dirname, '../../assets/icon.png');
+    log.info('⚙  Loading tray icon from:', iconPath);
+
+    if (!require('fs').existsSync(iconPath)) {
+      log.warn('⚠️ Tray icon not found at path:', iconPath);
+      // Try alternative path for development
+      const altPath = path.join(process.cwd(), 'assets/icon.png');
+      log.info('⚙  Trying alternative path:', altPath);
+      if (require('fs').existsSync(altPath)) {
+        tray = new Tray(altPath);
+      } else {
+        log.error('✗ Could not find tray icon anywhere');
+        return;
+      }
+    } else {
+      tray = new Tray(iconPath);
+    }
+
+    const contextMenu = Menu.buildFromTemplate([
+      {
+        label: 'Show App',
+        click: () => {
+          if (mainWindow) {
+            mainWindow.show();
+            mainWindow.focus();
+          } else {
+            createWindow();
+          }
+        }
+      },
+      {
+        label: 'Hide App',
+        click: () => {
+          if (mainWindow) {
+            mainWindow.hide();
+          }
+        }
+      },
+      { type: 'separator' },
+      {
+        label: 'Quit',
+        click: () => {
+          (app as any).isQuitting = true;
+          app.quit();
+        }
+      }
+    ]);
+
+     tray.setToolTip('Jewellery ERP System');
+     tray.setContextMenu(contextMenu);
+
+     log.info('✓ System tray created successfully');
+  } catch (error) {
+    console.error('✗ Failed to create system tray:', error);
+  }
 };
 
 /**
@@ -68,26 +153,26 @@ const createWindow = (): void => {
  */
 const validateLicense = async (): Promise<boolean> => {
   try {
-    console.log('🔐 Validating license...');
+    log.info('🔐 Validating license...');
 
     // Dynamically import licenseService after models are initialized
     const licenseService = (await import('./services/licenseService')).default;
     const result = await licenseService.validateLicense();
 
     if (result.valid) {
-      console.log('✓ License is valid');
+      log.info('✓ License is valid');
 
       if (result.warningMessage) {
-        console.warn('⚠️', result.warningMessage);
+        log.warn('⚠️', result.warningMessage);
       }
 
       return true;
     } else {
-      console.warn('✗ License validation failed:', result.error);
+      log.warn('✗ License validation failed:', result.error);
       return false;
     }
   } catch (error: any) {
-    console.error('✗ License validation error:', error);
+    log.error('✗ License validation error:', error);
     return false;
   }
 };
@@ -97,15 +182,15 @@ const validateLicense = async (): Promise<boolean> => {
  */
 const initializeApp = async (): Promise<void> => {
   try {
-    console.log('🚀 Starting Jewellery ERP System...');
+    log.info('🚀 Starting Jewellery ERP System...');
 
     // Initialize PostgreSQL service first
-    console.log('⚙  Starting PostgreSQL...');
+    log.info('⚙  Starting PostgreSQL...');
     await postgresService.init();
-    console.log('✓ PostgreSQL started successfully');
+    log.info('✓ PostgreSQL started successfully');
 
     // Initialize database
-    console.log('⚙  Initializing database...');
+    log.info('⚙  Initializing database...');
     await initializeDatabase();
 
     // Dynamically import models after database is initialized
@@ -120,26 +205,32 @@ const initializeApp = async (): Promise<void> => {
     const licenseValid = await validateLicense();
 
     // Create application window
+    log.info('⚙  Creating main window...');
     await createWindow();
+    log.info('✓ Main window function called');
+
+    // Create system tray
+    log.info('⚙  Initializing system tray...');
+    createTray();
 
     // Initialize auto-updater (only in production mode)
     const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
     if (!isDev && mainWindow && licenseValid) {
-      console.log('⚙  Initializing auto-updater...');
+      log.info('⚙  Initializing auto-updater...');
       const updateService = (await import('./services/updateService')).default;
       await updateService.init(mainWindow);
-      console.log('✓ Auto-updater initialized');
+      log.info('✓ Auto-updater initialized');
     }
 
     // If license is not valid, the app will show the activation page
     // This is handled in the React router (App.tsx)
     if (!licenseValid) {
-      console.log('⚠️ Application started in activation mode (no valid license)');
+      log.info('⚠️ Application started in activation mode (no valid license)');
     } else {
-      console.log('✓ Application started successfully');
+      log.info('✓ Application started successfully');
     }
   } catch (error: any) {
-    console.error('✗ Failed to initialize application:', error);
+    log.error('✗ Failed to initialize application:', error);
     app.quit();
   }
 };
@@ -166,7 +257,7 @@ app.on('activate', () => {
 });
 
 // Handle before quit
-app.on('before-quit', async (event: Electron.Event) => {
+app.on('before-quit', async (event: Event) => {
   log.info('⚙  Shutting down application...');
 
   // Prevent default to allow graceful shutdown

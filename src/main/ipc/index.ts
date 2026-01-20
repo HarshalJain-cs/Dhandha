@@ -1,3 +1,4 @@
+import log from 'electron-log';
 import { setupAuthHandlers } from './authHandlers';
 import { setupLicenseHandlers } from './licenseHandlers';
 import { setupSyncHandlers } from './syncHandlers';
@@ -36,7 +37,7 @@ import { setupReportsHandlers } from './reports-handlers'; // Import new reports
  * Setup all IPC handlers
  */
 export const setupAllHandlers = (): void => {
-  console.log('⚙  Setting up IPC handlers...');
+  log.info('⚙  Setting up IPC handlers...');
 
   // Setup authentication handlers
   setupAuthHandlers();
@@ -110,7 +111,7 @@ export const setupAllHandlers = (): void => {
   // Setup reports handlers
   setupReportsHandlers();
 
-  console.log('✓ All IPC handlers registered successfully');
+  log.info('✓ All IPC handlers registered successfully');
 };
 
 export default setupAllHandlers;

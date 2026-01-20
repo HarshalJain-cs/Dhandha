@@ -7,6 +7,10 @@ import path from 'path';
 export const preloadConfig: Configuration = {
   entry: './src/preload/index.ts',
   target: 'electron-preload',
+  output: {
+    path: path.resolve(__dirname, '.webpack/renderer/main_window'),
+    filename: 'preload.js',
+  },
   module: {
     rules: [
       {

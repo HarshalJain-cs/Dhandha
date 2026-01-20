@@ -1,14 +1,14 @@
-// @ts-nocheck
 import { Category } from '../database/models/Category';
 import { Op } from 'sequelize';
+import { CreateCategoryData, UpdateCategoryData } from '../../shared/types';
 
 /**
  * Category Service Response Interface
  */
-export interface CategoryServiceResponse {
+export interface CategoryServiceResponse<T = any> {
   success: boolean;
   message: string;
-  data?: any;
+  data?: T;
 }
 
 /**
@@ -36,15 +36,7 @@ export class CategoryService {
   /**
    * Create new category
    */
-  static async create(data: {
-    category_name: string;
-    category_code: string;
-    parent_category_id?: number;
-    description?: string;
-    hsn_code?: string;
-    tax_percentage?: number;
-    created_by: number;
-  }): Promise<CategoryServiceResponse> {
+  static async create(data: CreateCategoryData): Promise<CategoryServiceResponse<any>> {
     try {
       // Check if category code already exists
       const existingCode = await Category.findOne({
@@ -149,7 +141,7 @@ export class CategoryService {
   /**
    * Get category by ID
    */
-  static async getById(id: number): Promise<CategoryServiceResponse> {
+  static async getById(id: number): Promise<CategoryServiceResponse<any>> {
     try {
       const category = await Category.findByPk(id);
 
@@ -179,17 +171,9 @@ export class CategoryService {
    */
   static async update(
     id: number,
-    data: Partial<{
-      category_name: string;
-      category_code: string;
-      parent_category_id: number;
-      description: string;
-      hsn_code: string;
-      tax_percentage: number;
-      is_active: boolean;
-    }>,
+    data: UpdateCategoryData,
     updated_by: number
-  ): Promise<CategoryServiceResponse> {
+  ): Promise<CategoryServiceResponse<any>> {
     try {
       const category = await Category.findByPk(id);
 
@@ -258,7 +242,7 @@ export class CategoryService {
   /**
    * Delete category (soft delete by setting is_active to false)
    */
-  static async delete(id: number, deleted_by: number): Promise<CategoryServiceResponse> {
+  static async delete(id: number, deleted_by: number): Promise<CategoryServiceResponse<any>> {
     try {
       const category = await Category.findByPk(id);
 
@@ -305,7 +289,7 @@ export class CategoryService {
   /**
    * Get category tree (hierarchical structure)
    */
-  static async getTree(parentId: number | null = null): Promise<CategoryServiceResponse> {
+  static async getTree(parentId: number | null = null): Promise<CategoryServiceResponse<any>> {
     try {
       const buildTree = async (parentId: number | null, level: number = 0): Promise<CategoryTreeNode[]> => {
         const categories = await Category.findAll({
@@ -329,6 +313,7 @@ export class CategoryService {
             parent_category_id: category.parent_category_id,
             description: category.description,
             hsn_code: category.hsn_code,
+            // @ts-ignore - Category model may have tax_percentage property
             tax_percentage: category.tax_percentage,
             is_active: category.is_active,
             children,
@@ -427,7 +412,7 @@ export class CategoryService {
         return true; // Circular reference detected
       }
 
-      const parent = await Category.findByPk(currentId);
+      const parent: any = await Category.findByPk(currentId);
       if (!parent) {
         break;
       }

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { Stone } from '../database/models/Stone';
 import { ProductStone } from '../database/models/ProductStone';
 import { Op } from 'sequelize';
@@ -6,10 +5,10 @@ import { Op } from 'sequelize';
 /**
  * Stone Service Response Interface
  */
-export interface StoneServiceResponse {
+export interface StoneServiceResponse<T = any> {
   success: boolean;
   message: string;
-  data?: any;
+  data?: T;
 }
 
 /**
@@ -66,7 +65,7 @@ export class StoneService {
   /**
    * Get stone by ID
    */
-  static async getById(id: number): Promise<StoneServiceResponse> {
+  static async getById(id: number): Promise<StoneServiceResponse<any>> {
     try {
       const stone = await Stone.findByPk(id);
 
@@ -106,6 +105,7 @@ export class StoneService {
     try {
       // Check if stone code already exists
       const existingCode = await Stone.findOne({
+        // @ts-ignore - stone_code may not be in Stone model interface
         where: { stone_code: data.stone_code },
       });
 
@@ -169,6 +169,7 @@ export class StoneService {
       if (data.stone_code) {
         const existingCode = await Stone.findOne({
           where: {
+            // @ts-ignore - stone_code may not be in Stone model interface
             stone_code: data.stone_code,
             id: { [Op.ne]: id },
           },
@@ -211,7 +212,7 @@ export class StoneService {
   /**
    * Delete stone (soft delete)
    */
-  static async delete(id: number, deleted_by: number): Promise<StoneServiceResponse> {
+  static async delete(id: number, deleted_by: number): Promise<StoneServiceResponse<any>> {
     try {
       const stone = await Stone.findByPk(id);
 
@@ -357,6 +358,7 @@ export class StoneService {
 
       await productStone.update({
         ...data,
+        // @ts-ignore - updated_by may not be in ProductStone model interface
         updated_by,
       });
 
@@ -377,7 +379,7 @@ export class StoneService {
   /**
    * Remove stone from product
    */
-  static async removeStoneFromProduct(id: number): Promise<StoneServiceResponse> {
+  static async removeStoneFromProduct(id: number): Promise<StoneServiceResponse<any>> {
     try {
       const productStone = await ProductStone.findByPk(id);
 
@@ -425,6 +427,7 @@ export class StoneService {
 
         return {
           id: ps.id,
+          // @ts-ignore - stone may not be in ProductStone model interface
           stone: ps.stone,
           quantity: ps.quantity,
           carat_weight: ps.carat_weight,
@@ -433,7 +436,9 @@ export class StoneService {
           color_grade: ps.color_grade,
           clarity_grade: ps.clarity_grade,
           certificate_number: ps.certificate_number,
+          // @ts-ignore - certification_lab may not be in ProductStone model interface
           certification_lab: ps.certification_lab,
+          // @ts-ignore - description may not be in ProductStone model interface
           description: ps.description,
           base_value: baseValue,
           value_with_4c: value4C,

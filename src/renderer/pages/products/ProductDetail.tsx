@@ -210,7 +210,7 @@ const ProductDetail: React.FC = () => {
       </html>
     `;
 
-    const printWindow = window.open('', '_blank');
+    const printWindow = window.open('', '_blank') as Window | null;
     if (printWindow) {
       printWindow.document.write(printContent);
       printWindow.document.close();

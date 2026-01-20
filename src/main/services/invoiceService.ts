@@ -9,14 +9,15 @@ import { Category } from '../database/models/Category';
 import { ProductStone } from '../database/models/ProductStone';
 import { Op } from 'sequelize';
 import { sequelize } from '../database/connection';
+import { CreateInvoiceData } from '../../shared/types';
 
 /**
  * Invoice Service Response Interface
  */
-export interface InvoiceServiceResponse {
+export interface InvoiceServiceResponse<T = any> {
   success: boolean;
   message: string;
-  data?: any;
+  data?: T;
 }
 
 /**
@@ -99,9 +100,9 @@ export class InvoiceService {
       discount_percentage?: number;
       notes?: string;
       terms_conditions?: string;
-    },
-    createdBy: number
-  ): Promise<InvoiceServiceResponse> {
+     },
+     createdBy: number
+   ): Promise<InvoiceServiceResponse<any>> {
     const transaction = await sequelize.transaction();
 
     try {

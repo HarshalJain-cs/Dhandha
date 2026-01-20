@@ -1,5 +1,7 @@
 import { ipcMain, IpcMainInvokeEvent } from 'electron';
 import { CustomerService } from '../services/customerService';
+import { CreateCustomerData, UpdateCustomerData, ListResponse, CreateResponse, UpdateResponse, DetailResponse } from '../../shared/types';
+import log from 'electron-log';
 
 /**
  * Setup Customer IPC Handlers
@@ -8,11 +10,11 @@ export function setupCustomerHandlers(): void {
   /**
    * Generate customer code
    */
-  ipcMain.handle('customer:generateCode', async (_event: IpcMainInvokeEvent) => {
-    try {
-      return await CustomerService.generateCustomerCode();
-    } catch (error: any) {
-      console.error('IPC customer:generateCode error:', error);
+   ipcMain.handle('customer:generateCode', async (_event: IpcMainInvokeEvent): Promise<{ success: boolean; message: string; data?: any }> => {
+     try {
+       return await CustomerService.generateCustomerCode();
+     } catch (error: any) {
+       log.error('IPC customer:generateCode error:', error);
       return {
         success: false,
         message: 'An error occurred while generating customer code',
@@ -23,11 +25,11 @@ export function setupCustomerHandlers(): void {
   /**
    * Create customer
    */
-  ipcMain.handle('customer:create', async (_event: IpcMainInvokeEvent, customerData: any) => {
-    try {
-      return await CustomerService.create(customerData);
-    } catch (error: any) {
-      console.error('IPC customer:create error:', error);
+   ipcMain.handle('customer:create', async (_event: IpcMainInvokeEvent, customerData: CreateCustomerData): Promise<CreateResponse<any>> => {
+     try {
+       return await CustomerService.create(customerData);
+     } catch (error: any) {
+       log.error('IPC customer:create error:', error);
       return {
         success: false,
         message: 'An error occurred while creating customer',
@@ -38,13 +40,13 @@ export function setupCustomerHandlers(): void {
   /**
    * Get all customers
    */
-  ipcMain.handle(
-    'customer:getAll',
-    async (_event: IpcMainInvokeEvent, filters?: any, pagination?: any) => {
-      try {
-        return await CustomerService.getAll(filters, pagination);
-      } catch (error: any) {
-        console.error('IPC customer:getAll error:', error);
+   ipcMain.handle(
+     'customer:getAll',
+     async (_event: IpcMainInvokeEvent, filters?: any, pagination?: any): Promise<ListResponse<any>> => {
+       try {
+         return await CustomerService.getAll(filters, pagination);
+       } catch (error: any) {
+         log.error('IPC customer:getAll error:', error);
         return {
           success: false,
           message: 'An error occurred while retrieving customers',
@@ -56,11 +58,11 @@ export function setupCustomerHandlers(): void {
   /**
    * Get customer by ID
    */
-  ipcMain.handle('customer:getById', async (_event: IpcMainInvokeEvent, id: number) => {
-    try {
-      return await CustomerService.getById(id);
-    } catch (error: any) {
-      console.error('IPC customer:getById error:', error);
+   ipcMain.handle('customer:getById', async (_event: IpcMainInvokeEvent, id: number): Promise<DetailResponse<any>> => {
+     try {
+       return await CustomerService.getById(id);
+     } catch (error: any) {
+       log.error('IPC customer:getById error:', error);
       return {
         success: false,
         message: 'An error occurred while retrieving customer',
@@ -71,13 +73,13 @@ export function setupCustomerHandlers(): void {
   /**
    * Update customer
    */
-  ipcMain.handle(
-    'customer:update',
-    async (_event: IpcMainInvokeEvent, id: number, data: any, updated_by: number) => {
-      try {
-        return await CustomerService.update(id, data, updated_by);
-      } catch (error: any) {
-        console.error('IPC customer:update error:', error);
+   ipcMain.handle(
+     'customer:update',
+     async (_event: IpcMainInvokeEvent, id: number, data: UpdateCustomerData, updated_by: number): Promise<UpdateResponse<any>> => {
+       try {
+         return await CustomerService.update(id, data, updated_by);
+       } catch (error: any) {
+         log.error('IPC customer:update error:', error);
         return {
           success: false,
           message: 'An error occurred while updating customer',

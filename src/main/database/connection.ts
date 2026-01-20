@@ -2,7 +2,7 @@ import { Sequelize } from 'sequelize';
 import postgresService from '../services/postgresService';
 import log from 'electron-log';
 import { Umzug, SequelizeStorage } from 'umzug';
-import path from 'path';
+import * as path from 'path';
 
 const isDev = process.env.NODE_ENV !== 'production';
 

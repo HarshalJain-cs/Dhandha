@@ -1,12 +1,11 @@
-// @ts-nocheck
-import nodemailer from 'nodemailer';
+import * as nodemailer from 'nodemailer';
 import Invoice from '../database/models/Invoice';
 import Quotation from '../database/models/Quotation';
 import Payment from '../database/models/Payment';
 import GoldLoan from '../database/models/GoldLoan';
 
 export class EmailService {
-  private static transporter: any = null;
+  private static transporter: nodemailer.Transporter | null = null;
 
   static getTransporter() {
     if (!this.transporter) {
@@ -122,7 +121,7 @@ export class EmailService {
           <p>This is a reminder that your gold loan is approaching maturity.</p>
           <p><strong>Loan Number:</strong> ${loan.loan_number}</p>
           <p><strong>Maturity Date:</strong> ${loan.maturity_date}</p>
-          <p><strong>Outstanding Amount:</strong> ₹${loan.outstanding_amount}</p>
+          <p><strong>Outstanding Amount:</strong> ₹${(loan as any).outstanding_amount}</p>
           <p>Please contact us to settle your loan.</p>
         `,
       };

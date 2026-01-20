@@ -1,5 +1,7 @@
 import { ipcMain, IpcMainInvokeEvent } from 'electron';
 import { ProductService, ProductFilters } from '../services/productService';
+import { CreateProductData, UpdateProductData, ListResponse, CreateResponse, UpdateResponse, DetailResponse } from '../../shared/types';
+import log from 'electron-log';
 
 /**
  * Product IPC Handlers
@@ -13,14 +15,14 @@ export const setupProductHandlers = (): void => {
   /**
    * Handle product creation
    */
-  ipcMain.handle('product:create', async (
-    _event: IpcMainInvokeEvent,
-    productData: any
-  ) => {
+   ipcMain.handle('product:create', async (
+     _event: IpcMainInvokeEvent,
+     productData: CreateProductData
+   ): Promise<CreateResponse<any>> => {
     try {
       return await ProductService.create(productData);
     } catch (error: any) {
-      console.error('IPC product:create error:', error);
+      log.error('IPC product:create error:', error);
       return {
         success: false,
         message: 'An error occurred while creating product',
@@ -39,7 +41,7 @@ export const setupProductHandlers = (): void => {
     try {
       return await ProductService.getAll(filters, pagination);
     } catch (error: any) {
-      console.error('IPC product:getAll error:', error);
+      log.error('IPC product:getAll error:', error);
       return {
         success: false,
         message: 'An error occurred while retrieving products',
@@ -50,17 +52,17 @@ export const setupProductHandlers = (): void => {
   /**
    * Handle get product by ID
    */
-  ipcMain.handle('product:getById', async (
-    _event: IpcMainInvokeEvent,
-    id: number
-  ) => {
-    try {
-      return await ProductService.getById(id);
-    } catch (error: any) {
-      console.error('IPC product:getById error:', error);
-      return {
-        success: false,
-        message: 'An error occurred while retrieving product',
+   ipcMain.handle('product:getById', async (
+     _event: IpcMainInvokeEvent,
+     id: number
+   ): Promise<DetailResponse<any>> => {
+     try {
+       return await ProductService.getById(id);
+     } catch (error: any) {
+       log.error('IPC product:getById error:', error);
+       return {
+         success: false,
+         message: 'An error occurred while retrieving product',
       };
     }
   });
@@ -68,16 +70,16 @@ export const setupProductHandlers = (): void => {
   /**
    * Handle product update
    */
-  ipcMain.handle('product:update', async (
-    _event: IpcMainInvokeEvent,
-    id: number,
-    updateData: any,
-    updatedBy: number
-  ) => {
-    try {
-      return await ProductService.update(id, updateData, updatedBy);
-    } catch (error: any) {
-      console.error('IPC product:update error:', error);
+   ipcMain.handle('product:update', async (
+     _event: IpcMainInvokeEvent,
+     id: number,
+     updateData: UpdateProductData,
+     updatedBy: number
+   ): Promise<UpdateResponse<any>> => {
+     try {
+       return await ProductService.update(id, updateData, updatedBy);
+     } catch (error: any) {
+       log.error('IPC product:update error:', error);
       return {
         success: false,
         message: 'An error occurred while updating product',
@@ -88,15 +90,15 @@ export const setupProductHandlers = (): void => {
   /**
    * Handle product deletion
    */
-  ipcMain.handle('product:delete', async (
-    _event: IpcMainInvokeEvent,
-    id: number,
-    deletedBy: number
-  ) => {
-    try {
-      return await ProductService.delete(id, deletedBy);
-    } catch (error: any) {
-      console.error('IPC product:delete error:', error);
+   ipcMain.handle('product:delete', async (
+     _event: IpcMainInvokeEvent,
+     id: number,
+     deletedBy: number
+   ): Promise<{ success: boolean; message: string } | { success: false; message: string }> => {
+     try {
+       return await ProductService.delete(id, deletedBy);
+     } catch (error: any) {
+       log.error('IPC product:delete error:', error);
       return {
         success: false,
         message: 'An error occurred while deleting product',
@@ -107,17 +109,17 @@ export const setupProductHandlers = (): void => {
   /**
    * Handle stock update
    */
-  ipcMain.handle('product:updateStock', async (
-    _event: IpcMainInvokeEvent,
-    id: number,
-    quantity: number,
-    operation: 'add' | 'subtract' | 'set',
-    updatedBy: number
-  ) => {
-    try {
-      return await ProductService.updateStock(id, quantity, operation, updatedBy);
-    } catch (error: any) {
-      console.error('IPC product:updateStock error:', error);
+   ipcMain.handle('product:updateStock', async (
+     _event: IpcMainInvokeEvent,
+     id: number,
+     quantity: number,
+     operation: 'add' | 'subtract' | 'set',
+     updatedBy: number
+   ): Promise<{ success: boolean; message: string; data?: any } | { success: false; message: string }> => {
+     try {
+       return await ProductService.updateStock(id, quantity, operation, updatedBy);
+     } catch (error: any) {
+       log.error('IPC product:updateStock error:', error);
       return {
         success: false,
         message: 'An error occurred while updating stock',
@@ -132,7 +134,7 @@ export const setupProductHandlers = (): void => {
     try {
       return await ProductService.getLowStockProducts();
     } catch (error: any) {
-      console.error('IPC product:getLowStock error:', error);
+      log.error('IPC product:getLowStock error:', error);
       return {
         success: false,
         message: 'An error occurred while retrieving low stock products',
@@ -147,7 +149,7 @@ export const setupProductHandlers = (): void => {
     try {
       return await ProductService.getOutOfStockProducts();
     } catch (error: any) {
-      console.error('IPC product:getOutOfStock error:', error);
+      log.error('IPC product:getOutOfStock error:', error);
       return {
         success: false,
         message: 'An error occurred while retrieving out of stock products',
@@ -165,7 +167,7 @@ export const setupProductHandlers = (): void => {
     try {
       return await ProductService.searchByBarcode(barcode);
     } catch (error: any) {
-      console.error('IPC product:searchByBarcode error:', error);
+      log.error('IPC product:searchByBarcode error:', error);
       return {
         success: false,
         message: 'An error occurred while searching product by barcode',
@@ -183,7 +185,7 @@ export const setupProductHandlers = (): void => {
     try {
       return await ProductService.searchByRFID(rfidTag);
     } catch (error: any) {
-      console.error('IPC product:searchByRFID error:', error);
+      log.error('IPC product:searchByRFID error:', error);
       return {
         success: false,
         message: 'An error occurred while searching product by RFID',
@@ -201,7 +203,7 @@ export const setupProductHandlers = (): void => {
     try {
       return await ProductService.getByCategory(categoryId);
     } catch (error: any) {
-      console.error('IPC product:getByCategory error:', error);
+      log.error('IPC product:getByCategory error:', error);
       return {
         success: false,
         message: 'An error occurred while retrieving products by category',
@@ -219,7 +221,7 @@ export const setupProductHandlers = (): void => {
     try {
       return await ProductService.getByTags(tags);
     } catch (error: any) {
-      console.error('IPC product:getByTags error:', error);
+      log.error('IPC product:getByTags error:', error);
       return {
         success: false,
         message: 'An error occurred while retrieving products by tags',
@@ -238,7 +240,7 @@ export const setupProductHandlers = (): void => {
     try {
       return await ProductService.generateCode(categoryId, metalTypeId);
     } catch (error: any) {
-      console.error('IPC product:generateCode error:', error);
+      log.error('IPC product:generateCode error:', error);
       return {
         success: false,
         message: 'An error occurred while generating product code',
@@ -258,7 +260,7 @@ export const setupProductHandlers = (): void => {
     try {
       return await ProductService.getStockHistory(productId, filters, pagination);
     } catch (error: any) {
-      console.error('IPC product:getStockHistory error:', error);
+      log.error('IPC product:getStockHistory error:', error);
       return {
         success: false,
         message: 'An error occurred while retrieving stock history',
@@ -277,7 +279,7 @@ export const setupProductHandlers = (): void => {
     try {
       return await ProductService.getStockSummary(productId, days);
     } catch (error: any) {
-      console.error('IPC product:getStockSummary error:', error);
+      log.error('IPC product:getStockSummary error:', error);
       return {
         success: false,
         message: 'An error occurred while retrieving stock summary',
@@ -296,7 +298,7 @@ export const setupProductHandlers = (): void => {
     try {
       return await ProductService.getStockActivity(productId, limit);
     } catch (error: any) {
-      console.error('IPC product:getStockActivity error:', error);
+      log.error('IPC product:getStockActivity error:', error);
       return {
         success: false,
         message: 'An error occurred while retrieving stock activity',

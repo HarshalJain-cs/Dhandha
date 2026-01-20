@@ -3,6 +3,7 @@ import { SyncQueue } from '../database/models/SyncQueue';
 import { SyncStatus } from '../database/models/SyncStatus';
 import { sequelize } from '../database/connection';
 import { Op } from 'sequelize';
+import log from 'electron-log';
 import ConfigService from './configService';
 
 /**
@@ -33,8 +34,8 @@ export class SyncService {
     }
 
     if (!isSupabaseConfigured()) {
-      console.log('ℹ  Supabase not configured. Sync service disabled.');
-      console.log('   App will work in local-only mode.');
+      log.info('ℹ  Supabase not configured. Sync service disabled.');
+      log.info('   App will work in local-only mode.');
       return;
     }
 
@@ -50,7 +51,7 @@ export class SyncService {
           sync_enabled: true,
           sync_interval_minutes: 5,
         });
-        console.log('✓ Sync status initialized for branch', currentBranchId);
+        log.info('✓ Sync status initialized for branch', currentBranchId);
       }
 
       // Start periodic sync if enabled
@@ -58,9 +59,9 @@ export class SyncService {
         this.startPeriodicSync(syncStatus.sync_interval_minutes);
       }
 
-      console.log('✓ Sync service initialized successfully');
+      log.info('✓ Sync service initialized successfully');
     } catch (error: any) {
-      console.error('✗ Failed to initialize sync service:', error.message);
+      log.error('✗ Failed to initialize sync service:', error.message);
     }
   }
 
@@ -74,17 +75,17 @@ export class SyncService {
 
     // Run sync immediately
     this.performSync().catch((error) => {
-      console.error('Sync error:', error);
+      log.error('Sync error:', error);
     });
 
     // Then run periodically
     this.syncInterval = setInterval(() => {
       this.performSync().catch((error) => {
-        console.error('Sync error:', error);
+        log.error('Sync error:', error);
       });
     }, intervalMinutes * 60 * 1000);
 
-    console.log(`✓ Periodic sync started (every ${intervalMinutes} minutes)`);
+    log.info(`✓ Periodic sync started (every ${intervalMinutes} minutes)`);
   }
 
   /**
@@ -94,7 +95,7 @@ export class SyncService {
     if (this.syncInterval) {
       clearInterval(this.syncInterval);
       this.syncInterval = null;
-      console.log('✓ Periodic sync stopped');
+      log.info('✓ Periodic sync stopped');
     }
   }
 
@@ -208,7 +209,7 @@ export class SyncService {
         pushedCount++;
       } catch (error: any) {
         await change.markAsFailed(error.message);
-        console.error(`Failed to sync change ${change.id}:`, error.message);
+        log.error(`Failed to sync change ${change.id}:`, error.message);
       }
     }
 
@@ -269,7 +270,7 @@ export class SyncService {
         const { data, error } = await query;
 
         if (error) {
-          console.error(`Error pulling ${tableName}:`, error.message);
+          log.error(`Error pulling ${tableName}:`, error.message);
           continue;
         }
 
@@ -283,7 +284,7 @@ export class SyncService {
           pulledCount++;
         }
       } catch (error: any) {
-        console.error(`Failed to pull ${tableName}:`, error.message);
+        log.error(`Failed to pull ${tableName}:`, error.message);
       }
     }
 
@@ -364,7 +365,7 @@ export class SyncService {
         await syncStatus.updatePendingCount(pendingCount);
       }
     } catch (error: any) {
-      console.error('Failed to queue change:', error.message);
+      log.error('Failed to queue change:', error.message);
     }
   }
 
@@ -406,7 +407,7 @@ export class SyncService {
     pushed: number;
     pulled: number;
   }> {
-    console.log('⚙  Manual sync triggered');
+    log.info('⚙  Manual sync triggered');
     return this.performSync();
   }
 
@@ -426,7 +427,7 @@ export class SyncService {
       },
     });
 
-    console.log(`✓ Cleaned up ${result} old sync records`);
+    log.info(`✓ Cleaned up ${result} old sync records`);
     return result;
   }
 }

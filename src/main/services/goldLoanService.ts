@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { GoldLoan } from '../database/models/GoldLoan';
 import { LoanPayment } from '../database/models/LoanPayment';
 import { Customer } from '../database/models/Customer';
@@ -8,10 +7,10 @@ import { sequelize } from '../database/connection';
 /**
  * Gold Loan Service Response Interface
  */
-export interface GoldLoanServiceResponse {
+export interface GoldLoanServiceResponse<T = any> {
   success: boolean;
   message: string;
-  data?: any;
+  data?: T;
 }
 
 /**
@@ -40,7 +39,7 @@ export class GoldLoanService {
   static async createGoldLoan(
     data: any,
     createdBy: number
-  ): Promise<GoldLoanServiceResponse> {
+  ): Promise<GoldLoanServiceResponse<any>> {
     const transaction = await sequelize.transaction();
 
     try {
@@ -69,8 +68,10 @@ export class GoldLoanService {
         customer_id: data.customer_id,
 
         // Customer snapshot
+        // @ts-ignore - Customer model has computed properties
         customer_name: customer.name,
         customer_mobile: customer.mobile,
+        // @ts-ignore - Customer model has computed properties
         customer_address: customer.address,
         customer_aadhar: customer.aadhar_number,
         customer_pan: customer.pan_number,
@@ -154,7 +155,7 @@ export class GoldLoanService {
   static async getAllLoans(
     filters?: GoldLoanFilters,
     pagination?: { page: number; limit: number }
-  ): Promise<GoldLoanServiceResponse> {
+  ): Promise<GoldLoanServiceResponse<any>> {
     try {
       const where: any = {};
 
@@ -237,7 +238,7 @@ export class GoldLoanService {
   /**
    * Get loan by ID
    */
-  static async getLoanById(id: number): Promise<GoldLoanServiceResponse> {
+  static async getLoanById(id: number): Promise<GoldLoanServiceResponse<any>> {
     try {
       const loan = await GoldLoan.findByPk(id, {
         include: [
@@ -674,7 +675,7 @@ export class GoldLoanService {
   /**
    * Get loan statistics
    */
-  static async getLoanStats(filters?: GoldLoanFilters): Promise<GoldLoanServiceResponse> {
+  static async getLoanStats(filters?: GoldLoanFilters): Promise<GoldLoanServiceResponse<any>> {
     try {
       const where: any = { is_active: true };
 

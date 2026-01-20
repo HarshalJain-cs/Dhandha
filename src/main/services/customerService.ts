@@ -1,13 +1,14 @@
 import { Customer } from '../database/models/Customer';
 import { Op } from 'sequelize';
+import { CreateCustomerData, UpdateCustomerData } from '../../shared/types';
 
 /**
  * Customer Service Response Interface
  */
-export interface CustomerServiceResponse {
+export interface CustomerServiceResponse<T = any> {
   success: boolean;
   message: string;
-  data?: any;
+  data?: T;
 }
 
 /**
@@ -75,31 +76,7 @@ export class CustomerService {
   /**
    * Create new customer
    */
-  static async create(data: {
-    customer_code?: string;
-    customer_type: 'retail' | 'wholesale' | 'vip';
-    first_name: string;
-    last_name?: string;
-    mobile: string;
-    alternate_mobile?: string;
-    email?: string;
-    pan_number?: string;
-    aadhar_number?: string;
-    gstin?: string;
-    address_line1?: string;
-    address_line2?: string;
-    city?: string;
-    state?: string;
-    pincode?: string;
-    country?: string;
-    date_of_birth?: Date;
-    anniversary_date?: Date;
-    credit_limit?: number;
-    credit_days?: number;
-    discount_percentage?: number;
-    notes?: string;
-    created_by: number;
-  }): Promise<CustomerServiceResponse> {
+  static async create(data: CreateCustomerData): Promise<CustomerServiceResponse<Customer>> {
     try {
       // Check if mobile number already exists
       const existingMobile = await Customer.findOne({
@@ -266,7 +243,7 @@ export class CustomerService {
    * Get customer by ID
    * Includes recent sales invoices
    */
-  static async getById(id: number): Promise<CustomerServiceResponse> {
+  static async getById(id: number): Promise<CustomerServiceResponse<Customer>> {
     try {
       const customer = await Customer.findByPk(id, {
         include: [
@@ -304,32 +281,9 @@ export class CustomerService {
    */
   static async update(
     id: number,
-    data: Partial<{
-      customer_code: string;
-      customer_type: 'retail' | 'wholesale' | 'vip';
-      first_name: string;
-      last_name: string;
-      mobile: string;
-      alternate_mobile: string;
-      email: string;
-      pan_number: string;
-      aadhar_number: string;
-      gstin: string;
-      address_line1: string;
-      address_line2: string;
-      city: string;
-      state: string;
-      pincode: string;
-      country: string;
-      date_of_birth: Date;
-      anniversary_date: Date;
-      credit_limit: number;
-      credit_days: number;
-      discount_percentage: number;
-      notes: string;
-    }>,
+    data: UpdateCustomerData,
     updated_by: number
-  ): Promise<CustomerServiceResponse> {
+  ): Promise<CustomerServiceResponse<Customer>> {
     try {
       const customer = await Customer.findByPk(id);
 

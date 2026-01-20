@@ -7,10 +7,10 @@ import Product from '../database/models/Product';
 import Category from '../database/models/Category';
 import Customer from '../database/models/Customer';
 
-interface ServiceResponse {
+interface ServiceResponse<T = any> {
   success: boolean;
   message?: string;
-  data?: any;
+  data?: T;
 }
 
 /**
@@ -25,7 +25,7 @@ export class DashboardService {
     startDate: string,
     endDate: string,
     groupBy: 'day' | 'week' | 'month'
-  ): Promise<ServiceResponse> {
+  ): Promise<ServiceResponse<any>> {
     try {
       const salesData = await Invoice.findAll({
         attributes: [
@@ -62,7 +62,7 @@ export class DashboardService {
   /**
    * Get product distribution by category
    */
-  static async getProductDistribution(): Promise<ServiceResponse> {
+  static async getProductDistribution(): Promise<ServiceResponse<any>> {
     try {
       const distribution = await Product.findAll({
         attributes: [
@@ -104,7 +104,7 @@ export class DashboardService {
     limit: number = 10,
     startDate?: string,
     endDate?: string
-  ): Promise<ServiceResponse> {
+  ): Promise<ServiceResponse<any>> {
     try {
       const whereClause: any = {
         is_cancelled: false,
@@ -160,7 +160,7 @@ export class DashboardService {
   static async getPaymentSummary(
     startDate?: string,
     endDate?: string
-  ): Promise<ServiceResponse> {
+  ): Promise<ServiceResponse<any>> {
     try {
       const whereClause: any = {
         payment_status: 'cleared',
@@ -203,7 +203,7 @@ export class DashboardService {
   static async getRevenueStats(
     startDate?: string,
     endDate?: string
-  ): Promise<ServiceResponse> {
+  ): Promise<ServiceResponse<any>> {
     try {
       const whereClause: any = {
         is_cancelled: false,
@@ -255,7 +255,7 @@ export class DashboardService {
   /**
    * Get customer statistics
    */
-  static async getCustomerStats(): Promise<ServiceResponse> {
+  static async getCustomerStats(): Promise<ServiceResponse<any>> {
     try {
       const stats = await Customer.findOne({
         attributes: [
