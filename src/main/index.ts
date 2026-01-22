@@ -4,6 +4,7 @@ import path from 'path';
 import log from 'electron-log';
 import { initializeDatabase } from './database/connection';
 import postgresService from './services/postgresService';
+import { setupMonitoringHandlers } from './ipc/monitoringHandlers';
 
 // Extend the app interface to include isQuitting property
 declare global {
@@ -200,6 +201,9 @@ const initializeApp = async (): Promise<void> => {
     // Dynamically import and setup IPC handlers (needed for license activation UI)
     const { setupAllHandlers } = await import('./ipc');
     setupAllHandlers();
+
+    // Setup monitoring handlers
+    setupMonitoringHandlers();
 
     // Validate license
     const licenseValid = await validateLicense();

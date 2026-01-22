@@ -18,8 +18,8 @@ export function setupImportExportHandlers(): void {
     if (result.success) {
       const dialogResult = await dialog.showSaveDialog({
         title: 'Export Invoices',
-        defaultPath: `invoices_${new Date().getTime()}.${format}`,
-        filters: [{ name: format.toUpperCase(), extensions: [format] }],
+        defaultPath: `invoices_${new Date().getTime()}.csv`,
+        filters: [{ name: 'CSV', extensions: ['csv'] }],
       }) as unknown as SaveDialogReturnValue;
 
       const { filePath } = dialogResult;
@@ -33,7 +33,64 @@ export function setupImportExportHandlers(): void {
   });
 
   ipcMain.handle('export:customers', async (event, filters, format) => {
-    const result = await ImportExportService.exportCustomers(filters, format);
+    const exportResult = await ImportExportService.exportCustomers(filters, format);
+    if (exportResult.success) {
+      const dialogResult = await dialog.showSaveDialog({
+        title: 'Export Customers',
+        defaultPath: `customers_${new Date().getTime()}.csv`,
+        filters: [{ name: 'CSV', extensions: ['csv'] }],
+      }) as unknown as SaveDialogReturnValue;
+
+      const { filePath } = dialogResult;
+
+      if (filePath) {
+        fs.writeFileSync(filePath, exportResult.data);
+        return { success: true, message: 'Customers exported successfully', filePath };
+      }
+    }
+    return exportResult;
+  });
+
+  ipcMain.handle('export:invoices', async (event, filters, format) => {
+    const exportResult = await ImportExportService.exportInvoices(filters, format);
+    if (exportResult.success) {
+      const dialogResult = await dialog.showSaveDialog({
+        title: 'Export Invoices',
+        defaultPath: `invoices_${new Date().getTime()}.csv`,
+        filters: [{ name: 'CSV', extensions: ['csv'] }],
+      }) as unknown as SaveDialogReturnValue;
+
+      const { filePath } = dialogResult;
+
+      if (filePath) {
+        fs.writeFileSync(filePath, exportResult.data);
+        return { success: true, message: 'Invoices exported successfully', filePath };
+      }
+    }
+    return exportResult;
+  });
+
+  ipcMain.handle('export:loans', async (event, filters, format) => {
+    const exportResult = await ImportExportService.exportGoldLoans(filters, format);
+    if (exportResult.success) {
+      const dialogResult = await dialog.showSaveDialog({
+        title: 'Export Gold Loans',
+        defaultPath: `loans_${new Date().getTime()}.csv`,
+        filters: [{ name: 'CSV', extensions: ['csv'] }],
+      }) as unknown as SaveDialogReturnValue;
+
+      const { filePath } = dialogResult;
+
+      if (filePath) {
+        fs.writeFileSync(filePath, exportResult.data);
+        return { success: true, message: 'Gold loans exported successfully', filePath };
+      }
+    }
+    return exportResult;
+  });
+
+  ipcMain.handle('export:generateTemplate', async (event, type) => {
+    const result = ImportExportService.generateTemplate(type);
     if (result.success) {
       const dialogResult = await dialog.showSaveDialog({
         title: 'Export Karigars',
@@ -42,63 +99,6 @@ export function setupImportExportHandlers(): void {
       }) as unknown as SaveDialogReturnValue;
 
       const { filePath } = dialogResult;
-
-      if (filePath) {
-        fs.writeFileSync(filePath, result.data);
-        return { success: true, message: 'Customers exported successfully', filePath };
-      }
-    }
-    return result;
-  });
-
-  ipcMain.handle('export:invoices', async (event, filters, format) => {
-    const result = await ImportExportService.exportInvoices(filters, format);
-    if (result.success) {
-      const result = await dialog.showSaveDialog({
-        title: 'Export Customers',
-        defaultPath: `customers_${new Date().getTime()}.${format}`,
-        filters: [{ name: format.toUpperCase(), extensions: [format] }],
-      });
-
-      const { filePath } = result;
-
-      if (filePath) {
-        fs.writeFileSync(filePath, result.data);
-        return { success: true, message: 'Invoices exported successfully', filePath };
-      }
-    }
-    return result;
-  });
-
-  ipcMain.handle('export:loans', async (event, filters, format) => {
-    const result = await ImportExportService.exportGoldLoans(filters, format);
-    if (result.success) {
-      const result = await dialog.showSaveDialog({
-        title: 'Export Invoices',
-        defaultPath: `invoices_${new Date().getTime()}.${format}`,
-        filters: [{ name: format.toUpperCase(), extensions: [format] }],
-      });
-
-      const { filePath } = result;
-
-      if (filePath) {
-        fs.writeFileSync(filePath, result.data);
-        return { success: true, message: 'Gold loans exported successfully', filePath };
-      }
-    }
-    return result;
-  });
-
-  ipcMain.handle('export:generateTemplate', async (event, type) => {
-    const result = ImportExportService.generateTemplate(type);
-    if (result.success) {
-      const result = await dialog.showSaveDialog({
-        title: 'Export Karigars',
-        defaultPath: `karigars_${new Date().getTime()}.${format}`,
-        filters: [{ name: format.toUpperCase(), extensions: [format] }],
-      });
-
-      const { filePath } = result;
 
       if (filePath) {
         fs.writeFileSync(filePath, result.data);
